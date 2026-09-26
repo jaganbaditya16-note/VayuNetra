@@ -47,22 +47,24 @@ type NormalizedHotspot = {
 
 function normalize(spot: RawHotspot, index: number): NormalizedHotspot {
   return {
-    id: String(spot.id ?? `api-${index}`),
-    city: String(spot.location?.city ?? "Reported area"),
-    area: String(spot.location?.area ?? "Citizen hotspot"),
-    latitude: Number(spot.location?.latitude ?? 20),
-    longitude: Number(spot.location?.longitude ?? 78),
-    severity: String(spot.severity ?? "moderate").replace(
+    id: String(spot?.id ?? `api-${index}`),
+    city: String(spot?.location?.city ?? "Reported area"),
+    area: String(spot?.location?.area ?? "Citizen hotspot"),
+    latitude: Number(spot?.location?.latitude ?? 20),
+    longitude: Number(spot?.location?.longitude ?? 78),
+    severity: String(spot?.severity ?? "moderate").replace(
       /^./,
       (value: string) => value.toUpperCase(),
     ),
-    confidence: Math.round(Number(spot.confidence ?? 0) * 100),
-    reports: Number(spot.reportCount ?? 0),
+    confidence: Math.round(Number(spot?.confidence ?? 0) * 100),
+    reports: Number(spot?.reportCount ?? 0),
     source: String(
-      spot.possibleContributors?.[0] ?? "Unspecified local source",
+      spot?.possibleContributors?.[0] ?? "Unspecified local source",
     ),
-    satelliteEvidence: spot.satelliteEvidence,
-    evidenceBasis: Array.isArray(spot.evidenceBasis) ? spot.evidenceBasis : [],
+    satelliteEvidence: spot?.satelliteEvidence,
+    evidenceBasis: Array.isArray(spot?.evidenceBasis)
+      ? spot.evidenceBasis
+      : [],
   };
 }
 
@@ -71,6 +73,38 @@ export default function MapPage() {
   const [selectedId, setSelectedId] = useState<string>();
   const [filter, setFilter] = useState("All");
   const [loading, setLoading] = useState(true);
+
+  const load = () => {
+    setLoading(true);
+
+    fetch("/api/hotspots")
+      .then((response) => response.json())
+      .then((data) => {
+        const values = Array.isArray(data?.hotspots)
+          ? data.hotspots.map((spot: RawHotspot, index: number) =>
+              normalize(spot, index),
+            )
+          : [];
+
+        setHotspots(values);
+
+        const requestedId =
+          typeof window !== "undefined"
+            ? new URLSearchParams(window.location.search).get("hotspot")
+            : null;
+
+        setSelectedId(
+          requestedId && values.some((item) => item.id === requestedId)
+            ? requestedId
+            : values[0]?.id,
+        );
+      })
+      .catch(() => {
+        setHotspots([]);
+        setSelectedId(undefined);
+      })
+      .finally(() => setLoading(false));
+  };
 
   useEffect(() => {
     let active = true;
@@ -318,3 +352,10 @@ export default function MapPage() {
                   </p>
                 </div>
               </>
+            )}
+          </aside>
+        </div>
+      </div>
+    </main>
+  );
+}
