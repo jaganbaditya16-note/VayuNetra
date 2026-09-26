@@ -31,13 +31,13 @@ function supabaseConfig() {
   return { url: url.replace(/\/$/, ""), key };
 }
 
-function mapRow(row: any): StoredReport {
+function mapRow(row: Record<string, unknown>): StoredReport {
   return {
     id: String(row.id),
     latitude: typeof row.latitude === "number" ? row.latitude : null,
     longitude: typeof row.longitude === "number" ? row.longitude : null,
     category: String(row.category ?? "other"),
-    severity: row.severity as CitizenReport["severity"],
+    severity: String(row.severity ?? "moderate") as CitizenReport["severity"],
     summary: String(row.summary ?? row.description ?? ""),
     reportedAt: String(row.created_at ?? new Date().toISOString()),
     language: String(row.language ?? "en"),
