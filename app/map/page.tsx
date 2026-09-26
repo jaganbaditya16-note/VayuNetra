@@ -117,7 +117,7 @@ export default function MapPage() {
     () =>
       filter === "All"
         ? hotspots
-        : hotspots.filter((item) => item.severity === filter),
+        : hotspots.filter((item: NormalizedHotspot) => item.severity === filter),
     [filter, hotspots],
   );
 
@@ -153,7 +153,7 @@ export default function MapPage() {
 
           <button
             type="button"
-            onClick={load}
+            onClick={() => window.location.reload()}
             className="inline-flex items-center justify-center gap-2 rounded-xl border border-white/10 bg-white/[0.03] px-4 py-2.5 text-xs font-semibold text-slate-300 hover:bg-white/[0.07]"
           >
             <RefreshCw className={`h-4 w-4 ${loading ? "animate-spin" : ""}`} />
@@ -318,10 +318,3 @@ export default function MapPage() {
                   </p>
                 </div>
               </>
-            )}
-          </aside>
-        </div>
-      </div>
-    </main>
-  );
-}
