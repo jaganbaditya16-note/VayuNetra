@@ -19,12 +19,7 @@ jobs:
           cache: npm
       - name: Install
         run: npm ci
-      - name: Lint diagnostics
-        continue-on-error: true
-        run: set -o pipefail; npm run lint 2>&1 | tee lint-output.txt
-      - name: Upload lint log
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: vayunetra-lint-last
-          path: lint-output.txt
+      - name: Lint
+        run: npm run lint
+      - name: Production build
+        run: npm run build
