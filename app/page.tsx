@@ -263,6 +263,14 @@ export default function Home() {
                 <MapPin className="h-4 w-4 text-cyan-300" />
                 Open evidence map
               </Link>
+
+              <Link
+                href="/priorities"
+                className="inline-flex items-center gap-2 rounded-xl border border-cyan-400/15 bg-cyan-400/[0.04] px-5 py-3 text-sm font-semibold text-cyan-200 transition hover:bg-cyan-400/[0.08]"
+              >
+                <Target className="h-4 w-4" />
+                Development priorities
+              </Link>
             </div>
           </div>
         </section>
@@ -610,7 +618,8 @@ export default function Home() {
               ["01", "Report", "Citizen text, voice and location become structured observations."],
               ["02", "Understand", "Gemini extracts category, severity, summary and possible source hints."],
               ["03", "Fuse", "Citizen evidence is combined with satellite and public monitoring signals."],
-              ["04", "Act", "The system exposes confidence and an evidence-aware follow-up action."],
+              ["04", "Prioritize", "Transparent evidence and planning context turn demand clusters into development priorities."],
+
             ].map(([number, title, description]) => (
               <div
                 key={number}
