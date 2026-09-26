@@ -74,12 +74,14 @@ export default function MapPage() {
   const [filter, setFilter] = useState("All");
   const [loading, setLoading] = useState(true);
 
-  const load = () => {
-    setLoading(true);
+  useEffect(() => {
+    let active = true;
 
     fetch("/api/hotspots")
       .then((response) => response.json())
       .then((data) => {
+        if (!active) return;
+
         const values: NormalizedHotspot[] = Array.isArray(data?.hotspots)
           ? data.hotspots.map((spot: RawHotspot, index: number) =>
               normalize(spot, index),
@@ -100,14 +102,17 @@ export default function MapPage() {
         );
       })
       .catch(() => {
+        if (!active) return;
         setHotspots([]);
         setSelectedId(undefined);
       })
-      .finally(() => setLoading(false));
-  };
+      .finally(() => {
+        if (active) setLoading(false);
+      });
 
-  useEffect(() => {
-    load();
+    return () => {
+      active = false;
+    };
   }, []);
 
   const visible = useMemo(
