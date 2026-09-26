@@ -8,7 +8,15 @@ const ai = new GoogleGenAI({
 const sleep = (ms: number) =>
   new Promise((resolve) => setTimeout(resolve, ms));
 
-function errorStatus(error: unknown) {\n  if (typeof error === "object" && error !== null && "status" in error) {\n    const status = (error as { status?: unknown }).status;\n    return typeof status === "number" ? status : undefined;\n  }\n  return undefined;\n}\n\nexport async function POST(request: Request) {
+function errorStatus(error: unknown) {
+  if (typeof error === "object" && error !== null && "status" in error) {
+    const status = (error as { status?: unknown }).status;
+    return typeof status === "number" ? status : undefined;
+  }
+  return undefined;
+}
+
+export async function POST(request: Request) {
   try {
     const body = await request.json();
 
@@ -94,7 +102,7 @@ Important:
       } catch (error: unknown) {
         console.error(`Gemini attempt ${attempt} failed:`, error);
 
-        const status = error?.status;
+        const status = errorStatus(error);
 
         if (status === 429) {
           throw error;
