@@ -43,9 +43,9 @@ function mapRow(row: Record<string, unknown>): StoredReport {
     language: String(row.language ?? "en"),
     description: String(row.description ?? row.summary ?? ""),
     possibleSources: Array.isArray(row.possible_sources) ? row.possible_sources : [],
-    recommendedAction: row.recommended_action ?? undefined,
+    recommendedAction:\n      typeof row.recommended_action === "string"\n        ? row.recommended_action\n        : undefined,
     confidence: typeof row.confidence === "number" ? row.confidence : null,
-    evidence: row.evidence && typeof row.evidence === "object" ? row.evidence : {},
+    evidence:\n      row.evidence && typeof row.evidence === "object" && !Array.isArray(row.evidence)\n        ? (row.evidence as Record<string, unknown>)\n        : {},
   };
 }
 
