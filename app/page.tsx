@@ -1,257 +1,374 @@
 "use client";
 
-import { useState } from "react";
+import Link from "next/link";
+import { useEffect, useMemo, useState } from "react";
 import {
-  Activity,
-  AlertTriangle,
-  Bell,
-  CheckCircle2,
+  ArrowUpRight,
   ChevronRight,
   CircleUserRound,
   Cloud,
+  Database,
   FileText,
-  Globe2,
-  LocateFixed,
   MapPin,
-  Menu,
-  Mic,
-  Navigation,
-  Radio,
-  Search,
-  Send,
+  Satellite,
   ShieldCheck,
   Sparkles,
-  Wind,
-  X,
+  Target,
+  Users,
 } from "lucide-react";
+import VayuHeader from "@/components/VayuHeader";
+import VayuMap from "@/components/VayuMapClient";
 
-const hotspots = [
+type Hotspot = {
+  id: string;
+  city: string;
+  area: string;
+  latitude: number;
+  longitude: number;
+  severity: string;
+  confidence: number;
+  reports: number;
+  source: string;
+  satelliteEvidence?: any;
+  isSample?: boolean;
+};
+
+const demoHotspots: Hotspot[] = [
   {
-    id: 1,
+    id: "demo-delhi",
     city: "Delhi NCR",
     area: "Anand Vihar",
+    latitude: 28.646,
+    longitude: 77.316,
     severity: "Critical",
-    value: 91,
-    reports: 38,
     confidence: 94,
+    reports: 38,
     source: "Traffic + construction dust",
-    x: "72%",
-    y: "29%",
+    isSample: true,
   },
   {
-    id: 2,
+    id: "demo-mumbai",
     city: "Mumbai",
     area: "Chembur",
+    latitude: 19.052,
+    longitude: 72.894,
     severity: "High",
-    value: 76,
-    reports: 24,
     confidence: 89,
-    source: "Industrial emissions",
-    x: "54%",
-    y: "57%",
-  },
-  {
-    id: 3,
-    city: "Ahmedabad",
-    area: "Naroda",
-    severity: "High",
-    value: 71,
-    reports: 19,
-    confidence: 86,
+    reports: 24,
     source: "Industrial activity",
-    x: "43%",
-    y: "48%",
+    isSample: true,
   },
   {
-    id: 4,
+    id: "demo-pune",
     city: "Pune",
     area: "Hadapsar",
+    latitude: 18.508,
+    longitude: 73.926,
     severity: "Moderate",
-    value: 54,
-    reports: 13,
     confidence: 81,
+    reports: 13,
     source: "Traffic + dust",
-    x: "51%",
-    y: "63%",
+    isSample: true,
   },
   {
-    id: 5,
+    id: "demo-ahmedabad",
+    city: "Ahmedabad",
+    area: "Naroda",
+    latitude: 23.052,
+    longitude: 72.668,
+    severity: "High",
+    confidence: 86,
+    reports: 19,
+    source: "Industrial activity",
+    isSample: true,
+  },
+  {
+    id: "demo-kolkata",
     city: "Kolkata",
     area: "Ballygunge",
+    latitude: 22.522,
+    longitude: 88.365,
     severity: "Moderate",
-    value: 49,
-    reports: 11,
     confidence: 78,
+    reports: 11,
     source: "Traffic emissions",
-    x: "78%",
-    y: "49%",
+    isSample: true,
   },
 ];
 
-const reports = [
+const demoReports = [
   {
+    id: "demo-r1",
     location: "Chembur, Mumbai",
-    text: "Heavy smoke observed near industrial area.",
-    time: "8 min ago",
-    type: "Smoke",
+    text: "Heavy smoke observed near an industrial area.",
+    category: "Smoke",
   },
   {
+    id: "demo-r2",
     location: "Anand Vihar, Delhi",
     text: "Dust and poor visibility reported by residents.",
-    time: "14 min ago",
-    type: "Dust",
+    category: "Dust",
   },
   {
+    id: "demo-r3",
     location: "Hadapsar, Pune",
-    text: "Strong burning smell reported near road.",
-    time: "27 min ago",
-    type: "Odour",
+    text: "Strong burning smell reported near a road.",
+    category: "Odour",
   },
 ];
 
+function normalizeHotspot(spot: any, index: number): Hotspot {
+  const latitude = Number(spot?.location?.latitude);
+  const longitude = Number(spot?.location?.longitude);
+
+  return {
+    id: String(spot?.id ?? `api-${index}`),
+    city: String(spot?.location?.city ?? "Reported area"),
+    area: String(spot?.location?.area ?? "Citizen hotspot"),
+    latitude: Number.isFinite(latitude) ? latitude : 20,
+    longitude: Number.isFinite(longitude) ? longitude : 78,
+    severity: String(spot?.severity ?? "moderate").replace(
+      /^./,
+      (value: string) => value.toUpperCase(),
+    ),
+    confidence: Math.round(Number(spot?.confidence ?? 0) * 100),
+    reports: Number(spot?.reportCount ?? 0),
+    source: String(
+      spot?.possibleContributors?.[0] ?? "Unspecified local source",
+    ),
+    satelliteEvidence: spot?.satelliteEvidence,
+    isSample: Boolean(spot?.isSample),
+  };
+}
+
+function severityTone(severity: string) {
+  const value = severity.toLowerCase();
+  if (value === "critical")
+    return "border-red-400/20 bg-red-400/10 text-red-300";
+  if (value === "high")
+    return "border-orange-400/20 bg-orange-400/10 text-orange-300";
+  return "border-yellow-400/20 bg-yellow-400/10 text-yellow-300";
+}
+
 export default function Home() {
-  const [selected, setSelected] = useState(hotspots[1]);
+  const [hotspots, setHotspots] = useState<Hotspot[]>([]);
+  const [reports, setReports] = useState<any[]>([]);
+  const [selectedId, setSelectedId] = useState<string>();
   const [filter, setFilter] = useState("All");
-  const [activeNav, setActiveNav] = useState("Overview");
-  const [reportOpen, setReportOpen] = useState(false);
-  const [reportText, setReportText] = useState("");
-  const [voiceActive, setVoiceActive] = useState(false);
-  const [submitted, setSubmitted] = useState(false);
+  const [loading, setLoading] = useState(true);
 
-  const visibleHotspots =
-    filter === "All"
-      ? hotspots
-      : hotspots.filter((item) => item.severity === filter);
+  useEffect(() => {
+    Promise.all([
+      fetch("/api/hotspots").then((response) => response.json()),
+      fetch("/api/report").then((response) => response.json()),
+    ])
+      .then(([hotspotData, reportData]) => {
+        const liveHotspots = Array.isArray(hotspotData?.hotspots)
+          ? hotspotData.hotspots.map(normalizeHotspot)
+          : [];
+        const liveReports = Array.isArray(reportData?.reports)
+          ? reportData.reports
+          : [];
 
-  function submitReport() {
-    if (!reportText.trim()) return;
-    setSubmitted(true);
-    setReportText("");
-  }
+        const nextHotspots = liveHotspots.length ? liveHotspots : demoHotspots;
+        const nextReports = liveReports.length ? liveReports : demoReports;
+
+        setHotspots(nextHotspots);
+        setReports(nextReports);
+        setSelectedId(nextHotspots[0]?.id);
+      })
+      .catch(() => {
+        setHotspots(demoHotspots);
+        setReports(demoReports);
+        setSelectedId(demoHotspots[0].id);
+      })
+      .finally(() => setLoading(false));
+  }, []);
+
+  const liveMode =
+    hotspots.length > 0 && hotspots.some((item) => !item.isSample);
+
+  const selected =
+    hotspots.find((item) => item.id === selectedId) ?? hotspots[0];
+
+  const visible = useMemo(
+    () =>
+      filter === "All"
+        ? hotspots
+        : hotspots.filter((item) => item.severity === filter),
+    [filter, hotspots],
+  );
+
+  const averageConfidence = hotspots.length
+    ? Math.round(
+        hotspots.reduce((sum, item) => sum + item.confidence, 0) /
+          hotspots.length,
+      )
+    : 0;
+
+  const actions = selected
+    ? [
+        selected.confidence < 50
+          ? "Collect additional nearby reports before escalating this signal."
+          : "Prioritize field verification around this evidence cluster.",
+        selected.reports > 1
+          ? "Review repeated community observations for a persistent local pattern."
+          : "Encourage additional nearby observations to strengthen the evidence.",
+        selected.satelliteEvidence
+          ? "Cross-check the satellite-derived signal with available ground monitoring."
+          : "Connect an environmental monitoring source to strengthen the evidence chain.",
+      ]
+    : [];
 
   return (
-    <main className="min-h-screen bg-[#050914] text-white">
-      <header className="sticky top-0 z-40 border-b border-white/10 bg-[#050914]/95 backdrop-blur-xl">
-        <div className="mx-auto flex h-[72px] max-w-[1700px] items-center justify-between px-5 lg:px-8">
-          <div className="flex items-center gap-3">
-            <div className="flex h-11 w-11 items-center justify-center rounded-xl border border-cyan-400/20 bg-cyan-400/10">
-              <Globe2 className="h-6 w-6 text-cyan-400" />
+    <main className="min-h-screen bg-[#040711] text-slate-100">
+      <VayuHeader />
+
+      <div className="mx-auto max-w-[1800px] px-4 py-6 sm:px-6 lg:px-8 lg:py-8">
+        <section className="relative overflow-hidden rounded-[28px] border border-white/[0.08] bg-[radial-gradient(circle_at_80%_10%,rgba(34,211,238,0.12),transparent_28%),linear-gradient(135deg,#091321,#050914_60%,#07121d)] p-6 shadow-2xl sm:p-8 lg:p-10">
+          <div className="pointer-events-none absolute -right-24 -top-32 h-80 w-80 rounded-full bg-cyan-400/10 blur-3xl" />
+
+          <div className="relative max-w-4xl">
+            <div className="mb-4 inline-flex items-center gap-2 rounded-full border border-cyan-400/20 bg-cyan-400/5 px-3 py-1.5 text-[10px] font-bold tracking-[0.18em] text-cyan-300">
+              <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-cyan-300" />
+              COMMUNITY SIGNAL → AI → ENVIRONMENTAL EVIDENCE → ACTION
             </div>
 
-            <div>
-              <h1 className="text-lg font-bold tracking-tight">VayuNetra</h1>
-              <p className="text-[11px] text-slate-500">
-                Environmental Intelligence
-              </p>
-            </div>
-          </div>
+            <h1 className="max-w-4xl text-3xl font-bold tracking-tight sm:text-4xl lg:text-5xl">
+              Turn scattered environmental signals into{" "}
+              <span className="text-cyan-300">evidence-backed hotspots.</span>
+            </h1>
 
-          <nav className="hidden items-center gap-1 md:flex">
-            {["Overview", "Report", "Map", "Insights"].map((item) => (
-              <button
-                key={item}
-                onClick={() => {
-                  setActiveNav(item);
-                  if (item === "Report") setReportOpen(true);
-                }}
-                className={`rounded-lg px-4 py-2 text-sm transition ${
-                  activeNav === item
-                    ? "bg-white/10 text-white"
-                    : "text-slate-400 hover:bg-white/5 hover:text-white"
-                }`}
-              >
-                {item}
-              </button>
-            ))}
-          </nav>
-
-          <div className="flex items-center gap-2">
-            <button className="rounded-xl border border-white/10 p-2.5 text-slate-400 transition hover:border-cyan-400/30 hover:text-white">
-              <Bell className="h-5 w-5" />
-            </button>
-
-            <div className="hidden h-10 w-10 items-center justify-center rounded-full bg-cyan-400 font-bold text-slate-950 sm:flex">
-              V
-            </div>
-
-            <button className="rounded-xl border border-white/10 p-2.5 text-slate-400 md:hidden">
-              <Menu className="h-5 w-5" />
-            </button>
-          </div>
-        </div>
-      </header>
-
-      <div className="mx-auto max-w-[1700px] px-5 py-6 lg:px-8">
-        <div className="mb-7 flex flex-col justify-between gap-4 lg:flex-row lg:items-end">
-          <div>
-            <div className="mb-2 flex items-center gap-2 text-sm font-medium text-cyan-400">
-              <Radio className="h-4 w-4" />
-              Community Environmental Intelligence
-            </div>
-
-            <h2 className="text-3xl font-bold tracking-tight sm:text-4xl">
-              India Pollution Intelligence
-            </h2>
-
-            <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-400">
-              Understand community pollution signals by combining citizen
-              reports, public environmental data, and satellite-derived
-              indicators.
+            <p className="mt-4 max-w-3xl text-sm leading-7 text-slate-400 sm:text-base">
+              VayuNetra structures multilingual citizen observations with Gemini,
+              combines them with satellite-derived indicators and available
+              public monitoring data, then exposes the evidence, confidence and
+              next action in one operational view.
             </p>
+
+            <div className="mt-7 flex flex-wrap gap-3">
+              <Link
+                href="/report"
+                className="inline-flex items-center gap-2 rounded-xl bg-cyan-300 px-5 py-3 text-sm font-bold text-slate-950 shadow-[0_8px_30px_rgba(34,211,238,0.16)] transition hover:bg-cyan-200"
+              >
+                <FileText className="h-4 w-4" />
+                Report an issue
+                <ArrowUpRight className="h-4 w-4" />
+              </Link>
+
+              <Link
+                href="/map"
+                className="inline-flex items-center gap-2 rounded-xl border border-white/10 bg-white/[0.03] px-5 py-3 text-sm font-semibold text-slate-200 transition hover:bg-white/[0.07]"
+              >
+                <MapPin className="h-4 w-4 text-cyan-300" />
+                Open evidence map
+              </Link>
+            </div>
           </div>
+        </section>
 
-          <button
-            onClick={() => setReportOpen(true)}
-            className="flex items-center justify-center gap-2 rounded-xl bg-cyan-400 px-5 py-3 font-semibold text-slate-950 transition hover:bg-cyan-300"
+        {!loading && (
+          <div
+            className={`mt-4 flex flex-wrap items-center justify-between gap-3 rounded-xl border px-4 py-3 text-xs ${
+              liveMode
+                ? "border-emerald-400/15 bg-emerald-400/[0.04]"
+                : "border-amber-400/15 bg-amber-400/[0.04]"
+            }`}
           >
-            <FileText className="h-4 w-4" />
-            Report an Issue
-          </button>
-        </div>
+            <div className="flex items-center gap-2">
+              <span
+                className={`h-2 w-2 rounded-full ${
+                  liveMode
+                    ? "animate-pulse bg-emerald-400"
+                    : "bg-amber-400"
+                }`}
+              />
+              <span
+                className={
+                  liveMode ? "text-emerald-300" : "text-amber-300"
+                }
+              >
+                {liveMode ? "LIVE EVIDENCE" : "DEMO DATA"}
+              </span>
+              <span className="text-slate-500">
+                {liveMode
+                  ? "Current API evidence is driving this view."
+                  : "Fallback values are clearly separated from live measurements."}
+              </span>
+            </div>
 
-        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+            <Link
+              href="/sources"
+              className="font-semibold text-slate-400 hover:text-white"
+            >
+              View methodology →
+            </Link>
+          </div>
+        )}
+
+        <section className="mt-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
           {[
-            ["Active Hotspots", "24", "+8 today", AlertTriangle],
-            ["Citizen Reports", "1,284", "+16.4%", FileText],
-            ["Areas Monitored", "186", "Across India", Navigation],
-            ["AI Confidence", "91%", "Evidence fusion", Sparkles],
+            ["Evidence hotspots", String(hotspots.length), "Current dataset", Target],
+            [
+              "Citizen reports",
+              String(reports.length),
+              liveMode ? "Stored observations" : "Demo observations",
+              Users,
+            ],
+            ["Average confidence", `${averageConfidence}%`, "Evidence fusion", ShieldCheck],
+            [
+              "Satellite-supported",
+              String(
+                hotspots.filter((item) => Boolean(item.satelliteEvidence)).length,
+              ),
+              "Current hotspots",
+              Satellite,
+            ],
           ].map(([label, value, sub, Icon]) => (
             <div
-              key={label as string}
-              className="group rounded-2xl border border-white/10 bg-white/[0.035] p-5 transition hover:-translate-y-0.5 hover:border-cyan-400/20"
+              key={String(label)}
+              className="rounded-2xl border border-white/[0.08] bg-white/[0.025] p-5 transition hover:border-cyan-400/20 hover:bg-white/[0.04]"
             >
               <div className="flex items-center justify-between">
-                <p className="text-sm text-slate-400">{label as string}</p>
-                <Icon className="h-5 w-5 text-cyan-400/70" />
+                <span className="text-xs font-medium text-slate-500">
+                  {label as string}
+                </span>
+                <Icon className="h-4 w-4 text-cyan-400/70" />
               </div>
-
-              <div className="mt-4 flex items-end justify-between">
-                <p className="text-3xl font-bold">{value as string}</p>
-                <span className="text-xs text-emerald-400">{sub as string}</span>
+              <div className="mt-4 flex items-end justify-between gap-3">
+                <span className="text-3xl font-bold tracking-tight">
+                  {value as string}
+                </span>
+                <span className="text-[10px] text-slate-600">
+                  {sub as string}
+                </span>
               </div>
             </div>
           ))}
-        </div>
+        </section>
 
-        <div className="mt-6 grid gap-6 xl:grid-cols-[1.65fr_0.95fr]">
-          <section className="overflow-hidden rounded-2xl border border-white/10 bg-[#080f20]">
-            <div className="flex flex-col justify-between gap-4 border-b border-white/10 p-5 sm:flex-row sm:items-center">
+        <section className="mt-5 grid gap-5 xl:grid-cols-[minmax(0,1.7fr)_380px]">
+          <div className="overflow-hidden rounded-2xl border border-white/[0.08] bg-[#07101d]">
+            <div className="flex flex-col gap-4 border-b border-white/[0.07] p-5 sm:flex-row sm:items-center sm:justify-between">
               <div>
-                <h3 className="font-semibold">Community Pollution Map</h3>
-                <p className="mt-1 text-xs text-slate-500">
-                  Select a hotspot to inspect its evidence
+                <p className="text-[10px] font-bold tracking-[0.18em] text-cyan-400">
+                  LIVE EVIDENCE MAP
                 </p>
+                <h2 className="mt-1 text-lg font-semibold">
+                  Where community signals are concentrating
+                </h2>
               </div>
 
-              <div className="flex gap-1 rounded-lg border border-white/10 bg-black/20 p-1">
+              <div className="flex flex-wrap gap-1 rounded-xl border border-white/10 bg-black/20 p-1">
                 {["All", "Critical", "High", "Moderate"].map((item) => (
                   <button
+                    type="button"
                     key={item}
                     onClick={() => setFilter(item)}
-                    className={`rounded-md px-3 py-1.5 text-xs transition ${
+                    className={`rounded-lg px-3 py-1.5 text-[11px] font-semibold transition ${
                       filter === item
-                        ? "bg-cyan-400 text-slate-950"
-                        : "text-slate-400 hover:text-white"
+                        ? "bg-cyan-300 text-slate-950"
+                        : "text-slate-500 hover:text-white"
                     }`}
                   >
                     {item}
@@ -260,320 +377,257 @@ export default function Home() {
               </div>
             </div>
 
-            <div className="relative h-[510px] overflow-hidden bg-[#071225]">
-              <div className="absolute inset-0 opacity-30 [background-image:linear-gradient(rgba(148,163,184,.08)_1px,transparent_1px),linear-gradient(90deg,rgba(148,163,184,.08)_1px,transparent_1px)] [background-size:42px_42px]" />
+            <VayuMap
+              hotspots={visible}
+              selectedId={selectedId}
+              onSelect={(item) => setSelectedId(item.id)}
+              className="h-[500px] sm:h-[560px]"
+            />
+          </div>
 
-              <div className="absolute left-[15%] top-[12%] h-[72%] w-[70%] rotate-[-5deg] rounded-[48%] border border-cyan-400/10 bg-cyan-400/[0.025]" />
-
-              <div className="absolute left-6 top-6 rounded-lg border border-white/10 bg-black/30 px-3 py-2 text-xs text-slate-400 backdrop-blur">
-                <div className="flex items-center gap-2">
-                  <LocateFixed className="h-3.5 w-3.5 text-cyan-400" />
-                  India • Live intelligence view
-                </div>
-              </div>
-
-              {visibleHotspots.map((spot) => {
-                const active = selected.id === spot.id;
-
-                return (
-                  <button
-                    key={spot.id}
-                    onClick={() => setSelected(spot)}
-                    style={{ left: spot.x, top: spot.y }}
-                    className="absolute -translate-x-1/2 -translate-y-1/2"
-                  >
-                    <span
-                      className={`absolute -inset-3 animate-ping rounded-full ${
-                        spot.severity === "Critical"
-                          ? "bg-red-400/20"
-                          : spot.severity === "High"
-                            ? "bg-orange-400/20"
-                            : "bg-yellow-400/20"
-                      }`}
-                    />
-
-                    <span
-                      className={`relative flex h-5 w-5 items-center justify-center rounded-full border-2 border-white/80 shadow-lg ${
-                        spot.severity === "Critical"
-                          ? "bg-red-500"
-                          : spot.severity === "High"
-                            ? "bg-orange-400"
-                            : "bg-yellow-400"
-                      } ${active ? "scale-150" : ""} transition`}
-                    />
-
-                    {active && (
-                      <span className="absolute left-1/2 top-7 -translate-x-1/2 whitespace-nowrap rounded-md border border-white/10 bg-slate-950/95 px-2 py-1 text-[10px] text-white shadow-xl">
-                        {spot.area}
-                      </span>
-                    )}
-                  </button>
-                );
-              })}
-
-              <div className="absolute bottom-5 left-5 rounded-xl border border-white/10 bg-slate-950/90 p-3 text-xs backdrop-blur">
-                <p className="mb-2 font-medium text-slate-300">Severity</p>
-                <div className="space-y-1.5 text-slate-500">
-                  <p>?? Critical</p>
-                  <p>?? High</p>
-                  <p>?? Moderate</p>
-                </div>
-              </div>
-            </div>
-          </section>
-
-          <aside className="rounded-2xl border border-white/10 bg-white/[0.035]">
-            <div className="border-b border-white/10 p-5">
-              <div className="flex items-start justify-between">
+          {selected && (
+            <aside className="rounded-2xl border border-white/[0.08] bg-white/[0.025] p-5">
+              <div className="flex items-start justify-between gap-4">
                 <div>
-                  <p className="text-xs font-medium uppercase tracking-wider text-cyan-400">
-                    Selected hotspot
+                  <p className="text-[10px] font-bold tracking-[0.18em] text-cyan-400">
+                    SELECTED HOTSPOT
                   </p>
-                  <h3 className="mt-1 text-xl font-bold">{selected.area}</h3>
+                  <h2 className="mt-1 text-xl font-bold">{selected.area}</h2>
                   <p className="text-sm text-slate-500">{selected.city}</p>
                 </div>
 
                 <span
-                  className={`rounded-full px-3 py-1 text-xs font-semibold ${
-                    selected.severity === "Critical"
-                      ? "bg-red-400/10 text-red-400"
-                      : selected.severity === "High"
-                        ? "bg-orange-400/10 text-orange-400"
-                        : "bg-yellow-400/10 text-yellow-400"
-                  }`}
+                  className={`rounded-full border px-2.5 py-1 text-[10px] font-bold ${severityTone(
+                    selected.severity,
+                  )}`}
                 >
                   {selected.severity}
                 </span>
               </div>
-            </div>
 
-            <div className="space-y-5 p-5">
-              <div className="grid grid-cols-2 gap-3">
-                <div className="rounded-xl border border-white/10 bg-black/20 p-4">
-                  <p className="text-xs text-slate-500">Severity index</p>
-                  <p className="mt-2 text-2xl font-bold">{selected.value}</p>
-                </div>
-
-                <div className="rounded-xl border border-white/10 bg-black/20 p-4">
-                  <p className="text-xs text-slate-500">Confidence</p>
-                  <p className="mt-2 text-2xl font-bold text-cyan-400">
+              <div className="mt-5 grid grid-cols-2 gap-3">
+                <div className="rounded-xl border border-white/[0.07] bg-black/20 p-4">
+                  <p className="text-[10px] text-slate-500">AI confidence</p>
+                  <p className="mt-2 text-2xl font-bold text-cyan-300">
                     {selected.confidence}%
+                  </p>
+                </div>
+                <div className="rounded-xl border border-white/[0.07] bg-black/20 p-4">
+                  <p className="text-[10px] text-slate-500">Citizen reports</p>
+                  <p className="mt-2 text-2xl font-bold">
+                    {selected.reports}
                   </p>
                 </div>
               </div>
 
-              <div>
-                <div className="mb-2 flex justify-between text-xs">
-                  <span className="text-slate-500">AI evidence confidence</span>
-                  <span className="text-cyan-400">{selected.confidence}%</span>
+              <div className="mt-3 rounded-xl border border-white/[0.07] bg-black/20 p-4">
+                <div className="flex items-center justify-between text-[10px] uppercase tracking-wider">
+                  <span className="text-slate-500">Evidence strength</span>
+                  <span className="text-cyan-300">
+                    {selected.confidence}%
+                  </span>
                 </div>
-
-                <div className="h-2 overflow-hidden rounded-full bg-slate-800">
+                <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-slate-800">
                   <div
-                    className="h-full rounded-full bg-cyan-400"
-                    style={{ width: `${selected.confidence}%` }}
+                    className="h-full rounded-full bg-cyan-300"
+                    style={{
+                      width: `${Math.min(selected.confidence, 100)}%`,
+                    }}
                   />
                 </div>
               </div>
 
-              <div className="rounded-xl border border-cyan-400/10 bg-cyan-400/[0.04] p-4">
-                <div className="flex gap-3">
-                  <Sparkles className="mt-0.5 h-5 w-5 shrink-0 text-cyan-400" />
-                  <div>
-                    <p className="text-sm font-semibold">AI evidence summary</p>
-                    <p className="mt-2 text-xs leading-5 text-slate-400">
-                      Multiple community signals align with environmental
-                      indicators in this area. The current source hint is{" "}
-                      <span className="text-slate-200">{selected.source}</span>.
-                    </p>
-                  </div>
+              <div className="mt-3 space-y-2">
+                <div className="flex items-center justify-between rounded-xl bg-black/20 px-3 py-3">
+                  <span className="flex items-center gap-2 text-xs text-slate-400">
+                    <CircleUserRound className="h-4 w-4 text-cyan-400" />
+                    Citizen observations
+                  </span>
+                  <b className="text-xs">{selected.reports}</b>
                 </div>
-              </div>
 
-              <div>
-                <p className="mb-3 text-xs font-medium uppercase tracking-wider text-slate-500">
-                  Evidence
-                </p>
-
-                <div className="space-y-2">
-                  <div className="flex items-center justify-between rounded-lg bg-black/20 px-3 py-2.5">
-                    <span className="flex items-center gap-2 text-sm text-slate-300">
-                      <CircleUserRound className="h-4 w-4 text-cyan-400" />
-                      Citizen reports
-                    </span>
-                    <span className="text-sm font-semibold">{selected.reports}</span>
-                  </div>
-
-                  <div className="flex items-center justify-between rounded-lg bg-black/20 px-3 py-2.5">
-                    <span className="flex items-center gap-2 text-sm text-slate-300">
+                <div className="rounded-xl bg-black/20 px-3 py-3">
+                  <div className="flex items-center justify-between">
+                    <span className="flex items-center gap-2 text-xs text-slate-400">
                       <Cloud className="h-4 w-4 text-cyan-400" />
-                      Environmental signal
+                      Satellite indicator
                     </span>
-                    <CheckCircle2 className="h-4 w-4 text-emerald-400" />
+                    <span className="text-[10px] text-slate-300">
+                      {selected.satelliteEvidence ? "Available" : "Unavailable"}
+                    </span>
                   </div>
+                  {selected.satelliteEvidence && (
+                    <p className="mt-2 text-[10px] leading-5 text-slate-500">
+                      {Number(selected.satelliteEvidence.value).toExponential(3)}{" "}
+                      {selected.satelliteEvidence.unit ?? ""} ·{" "}
+                      {selected.satelliteEvidence.source ?? "Satellite source"}
+                    </p>
+                  )}
+                </div>
 
-                  <div className="flex items-center justify-between rounded-lg bg-black/20 px-3 py-2.5">
-                    <span className="flex items-center gap-2 text-sm text-slate-300">
-                      <ShieldCheck className="h-4 w-4 text-cyan-400" />
-                      Data confidence
-                    </span>
-                    <span className="text-xs text-emerald-400">Verified</span>
-                  </div>
+                <div className="rounded-xl bg-black/20 px-3 py-3">
+                  <span className="flex items-center gap-2 text-xs text-slate-400">
+                    <Database className="h-4 w-4 text-cyan-400" />
+                    Evidence source hint
+                  </span>
+                  <p className="mt-1 text-[10px] text-slate-500">
+                    {selected.source}
+                  </p>
                 </div>
               </div>
 
-              <button
-                onClick={() => setReportOpen(true)}
-                className="flex w-full items-center justify-center gap-2 rounded-xl bg-cyan-400 py-3 text-sm font-semibold text-slate-950 transition hover:bg-cyan-300"
-              >
-                Investigate this hotspot
-                <ChevronRight className="h-4 w-4" />
-              </button>
-            </div>
-          </aside>
-        </div>
-
-        <div className="mt-6 grid gap-6 lg:grid-cols-[1.2fr_0.8fr]">
-          <section className="rounded-2xl border border-white/10 bg-white/[0.035] p-5">
-            <div className="mb-5 flex items-center justify-between">
-              <div>
-                <h3 className="font-semibold">Recent Citizen Reports</h3>
-                <p className="mt-1 text-xs text-slate-500">
-                  Community signals entering the intelligence pipeline
-                </p>
+              <div className="mt-4 rounded-xl border border-cyan-400/10 bg-cyan-400/[0.04] p-4">
+                <div className="flex gap-3">
+                  <Sparkles className="mt-0.5 h-4 w-4 shrink-0 text-cyan-300" />
+                  <p className="text-xs leading-5 text-slate-400">
+                    {selected.reports} citizen report
+                    {selected.reports === 1 ? "" : "s"} currently support this
+                    hotspot alongside{" "}
+                    {selected.satelliteEvidence
+                      ? "a satellite-derived environmental indicator"
+                      : "the available evidence"}
+                    . This is decision support, not an official pollution or
+                    AQI verdict.
+                  </p>
+                </div>
               </div>
 
-              <button className="text-xs text-cyan-400 hover:text-cyan-300">
-                View all
-              </button>
+              <Link
+                href={`/map?hotspot=${encodeURIComponent(selected.id)}`}
+                className="mt-4 flex w-full items-center justify-center gap-2 rounded-xl bg-cyan-300 py-3 text-xs font-bold text-slate-950 transition hover:bg-cyan-200"
+              >
+                Open full evidence view
+                <ChevronRight className="h-4 w-4" />
+              </Link>
+            </aside>
+          )}
+        </section>
+
+        <section className="mt-5 grid gap-5 lg:grid-cols-[1.2fr_0.8fr]">
+          <div className="rounded-2xl border border-white/[0.08] bg-white/[0.025] p-5">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-[10px] font-bold tracking-[0.18em] text-cyan-400">
+                  COMMUNITY SIGNALS
+                </p>
+                <h2 className="mt-1 font-semibold">
+                  Recent reports entering the pipeline
+                </h2>
+              </div>
+              <Link
+                href="/report"
+                className="text-[11px] font-semibold text-cyan-300 hover:text-cyan-200"
+              >
+                Submit report →
+              </Link>
             </div>
 
-            <div className="space-y-3">
-              {reports.map((report) => (
+            <div className="mt-4 space-y-2">
+              {reports.slice(0, 5).map((report, index) => (
                 <div
-                  key={report.location}
-                  className="flex gap-4 rounded-xl border border-white/5 bg-black/15 p-4"
+                  key={String(report.id ?? `${report.location}-${index}`)}
+                  className="flex items-start gap-3 rounded-xl border border-white/[0.06] bg-black/15 p-3.5"
                 >
-                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-cyan-400/10">
-                    <MessageIcon />
+                  <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-cyan-400/10">
+                    <FileText className="h-4 w-4 text-cyan-300" />
                   </div>
 
                   <div className="min-w-0 flex-1">
-                    <div className="flex flex-wrap justify-between gap-2">
-                      <p className="text-sm font-medium">{report.location}</p>
-                      <span className="text-xs text-slate-600">{report.time}</span>
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                      <p className="truncate text-xs font-semibold text-slate-200">
+                        {report.location ?? "Reported area"}
+                      </p>
+                      <span className="text-[10px] text-slate-600">
+                        {report.reportedAt
+                          ? new Date(report.reportedAt).toLocaleString()
+                          : "Recent"}
+                      </span>
                     </div>
-                    <p className="mt-1 text-xs text-slate-500">{report.text}</p>
-                    <span className="mt-2 inline-block rounded-full bg-white/5 px-2 py-1 text-[10px] text-slate-400">
-                      {report.type}
+
+                    <p className="mt-1 line-clamp-2 text-[11px] leading-5 text-slate-500">
+                      {report.summary ??
+                        report.text ??
+                        "Environmental observation"}
+                    </p>
+
+                    <span className="mt-2 inline-flex rounded-full bg-white/5 px-2 py-1 text-[9px] text-slate-500">
+                      {report.category ?? report.type ?? "Environmental"}
                     </span>
                   </div>
                 </div>
               ))}
             </div>
-          </section>
+          </div>
 
-          <section className="rounded-2xl border border-white/10 bg-white/[0.035] p-5">
-            <div className="mb-5">
-              <h3 className="font-semibold">AI Action Center</h3>
-              <p className="mt-1 text-xs text-slate-500">
-                Recommended next steps from current evidence
+          <div className="rounded-2xl border border-white/[0.08] bg-white/[0.025] p-5">
+            <div>
+              <p className="text-[10px] font-bold tracking-[0.18em] text-cyan-400">
+                AI ACTION CENTER
               </p>
+              <h2 className="mt-1 font-semibold">
+                Evidence-aware next steps
+              </h2>
             </div>
 
-            <div className="space-y-3">
-              {[
-                "Prioritize inspection around high-confidence hotspots.",
-                "Review repeated citizen reports for emerging patterns.",
-                "Compare satellite-derived signals with public monitoring data.",
-              ].map((item, index) => (
+            <div className="mt-4 space-y-2">
+              {actions.map((action, index) => (
                 <div
-                  key={item}
-                  className="flex gap-3 rounded-xl border border-white/5 bg-black/15 p-4"
+                  key={action}
+                  className="flex gap-3 rounded-xl border border-white/[0.06] bg-black/15 p-3.5"
                 >
-                  <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-cyan-400/10 text-xs font-bold text-cyan-400">
-                    {index + 1}
+                  <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-lg bg-cyan-400/10 text-[10px] font-bold text-cyan-300">
+                    0{index + 1}
                   </span>
-                  <p className="text-xs leading-5 text-slate-400">{item}</p>
+                  <p className="text-[11px] leading-5 text-slate-500">
+                    {action}
+                  </p>
                 </div>
               ))}
             </div>
-          </section>
-        </div>
-      </div>
+          </div>
+        </section>
 
-      {reportOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-5 backdrop-blur-sm">
-          <div className="w-full max-w-xl rounded-2xl border border-white/10 bg-[#091121] shadow-2xl">
-            <div className="flex items-center justify-between border-b border-white/10 p-5">
-              <div>
-                <h3 className="text-lg font-semibold">Report a Pollution Issue</h3>
-                <p className="mt-1 text-xs text-slate-500">
-                  Your report will be prepared for AI analysis.
+        <section className="mt-5 rounded-2xl border border-white/[0.08] bg-white/[0.025] p-5 sm:p-6">
+          <div className="flex flex-col justify-between gap-3 sm:flex-row sm:items-end">
+            <div>
+              <p className="text-[10px] font-bold tracking-[0.18em] text-cyan-400">
+                THE INTELLIGENCE LOOP
+              </p>
+              <h2 className="mt-1 text-lg font-semibold">
+                One evidence chain, from observation to action
+              </h2>
+            </div>
+            <Link
+              href="/sources"
+              className="text-xs font-semibold text-slate-400 hover:text-white"
+            >
+              Read methodology →
+            </Link>
+          </div>
+
+          <div className="mt-5 grid gap-3 md:grid-cols-4">
+            {[
+              ["01", "Report", "Citizen text, voice and location become structured observations."],
+              ["02", "Understand", "Gemini extracts category, severity, summary and possible source hints."],
+              ["03", "Fuse", "Citizen evidence is combined with satellite and public monitoring signals."],
+              ["04", "Act", "The system exposes confidence and an evidence-aware follow-up action."],
+            ].map(([number, title, description]) => (
+              <div
+                key={number}
+                className="rounded-xl border border-white/[0.06] bg-black/15 p-4"
+              >
+                <span className="text-[10px] font-bold text-cyan-300">
+                  {number}
+                </span>
+                <h3 className="mt-2 text-sm font-semibold">{title}</h3>
+                <p className="mt-2 text-[11px] leading-5 text-slate-500">
+                  {description}
                 </p>
               </div>
-
-              <button
-                onClick={() => setReportOpen(false)}
-                className="rounded-lg p-2 text-slate-500 hover:bg-white/5 hover:text-white"
-              >
-                <X className="h-5 w-5" />
-              </button>
-            </div>
-
-            <div className="space-y-4 p-5">
-              <textarea
-                value={reportText}
-                onChange={(e) => setReportText(e.target.value)}
-                placeholder="Describe what you are seeing, smelling, or experiencing..."
-                className="min-h-36 w-full resize-none rounded-xl border border-white/10 bg-black/20 p-4 text-sm text-white outline-none placeholder:text-slate-600 focus:border-cyan-400/50"
-              />
-
-              <div className="flex gap-3">
-                <button
-                  onClick={() => setVoiceActive(!voiceActive)}
-                  className={`flex flex-1 items-center justify-center gap-2 rounded-xl border py-3 text-sm ${
-                    voiceActive
-                      ? "border-cyan-400 bg-cyan-400/10 text-cyan-400"
-                      : "border-white/10 text-slate-400 hover:text-white"
-                  }`}
-                >
-                  <Mic className="h-4 w-4" />
-                  {voiceActive ? "Listening..." : "Voice Report"}
-                </button>
-
-                <button className="flex flex-1 items-center justify-center gap-2 rounded-xl border border-white/10 py-3 text-sm text-slate-400 hover:text-white">
-                  <MapPin className="h-4 w-4" />
-                  Add Location
-                </button>
-              </div>
-
-              {submitted && (
-                <div className="rounded-xl border border-emerald-400/20 bg-emerald-400/10 p-3 text-sm text-emerald-400">
-                  Report captured. AI processing will be connected next.
-                </div>
-              )}
-
-              <button
-                onClick={submitReport}
-                className="flex w-full items-center justify-center gap-2 rounded-xl bg-cyan-400 py-3 font-semibold text-slate-950 hover:bg-cyan-300"
-              >
-                <Send className="h-4 w-4" />
-                Submit Report
-              </button>
-            </div>
+            ))}
           </div>
-        </div>
-      )}
+        </section>
+      </div>
     </main>
-  );
-}
-
-function MessageIcon() {
-  return (
-    <div className="relative">
-      <FileText className="h-5 w-5 text-cyan-400" />
-      <Wind className="absolute -right-2 -top-2 h-3 w-3 text-cyan-300" />
-    </div>
   );
 }

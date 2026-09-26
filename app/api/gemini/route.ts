@@ -12,7 +12,7 @@ export async function POST(request: Request) {
   try {
     const body = await request.json();
 
-    const { description, language, location } = body;
+    const { description, language, location, evidence } = body;
 
     if (!description || !description.trim()) {
       return NextResponse.json(
@@ -33,11 +33,35 @@ Reported language:
 ${language || "English"}
 
 Reported location:
-${location || "Not provided"}
+${JSON.stringify(location || "Not provided")}
+
+Environmental evidence available to the system:
+${JSON.stringify(evidence || "Not available")}
+
+Use environmental evidence only as supporting context. Do not treat satellite indicators as AQI, and do not claim a pollution source is confirmed unless the evidence explicitly supports that conclusion.
+
+Classify the report using EXACTLY one category from:
+- industrial
+- vehicular
+- burning
+- dust
+- air_pollution
+- water_pollution
+- waste
+- noise
+- other
+
+Choose the category that best matches the citizen's description.
+
+Choose exactly one severity:
+- low
+- moderate
+- high
+- critical
 
 Return ONLY valid JSON with these fields:
 {
-  "category": "air_pollution | water_pollution | waste | noise | traffic | other",
+  "category": "industrial | vehicular | burning | dust | air_pollution | water_pollution | waste | noise | other",
   "severity": "low | moderate | high | critical",
   "summary": "short factual summary",
   "possibleSources": ["possible source 1", "possible source 2"],
@@ -47,8 +71,11 @@ Return ONLY valid JSON with these fields:
 
 The confidence must be a number from 0 to 100.
 
-Do not claim that a pollution source is confirmed from the citizen report alone.
-Use wording such as "possible" or "reported" when evidence is insufficient.
+Important:
+- Do not claim that a pollution source is confirmed from the citizen report alone.
+- Use "possible", "reported", or similar wording when evidence is insufficient.
+- Base the classification only on the information provided.
+- Do not invent measurements, AQI values, or environmental observations.
 `;
 
     let response;
@@ -100,9 +127,12 @@ Use wording such as "possible" or "reported" when evidence is insufficient.
       return NextResponse.json(
         {
           error:
-            "Gemini request limit reached. Please wait a moment and try again.",
+            "Gemini free-tier quota is temporarily exhausted. Please wait before trying again.",
         },
-        { status: 429 }
+        {
+          status: 429,
+          headers: { "Retry-After": "60" },
+        }
       );
     }
 

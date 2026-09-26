@@ -1,0 +1,20 @@
+[
+  {
+    "id": "report-1790334839626",
+    "latitude": 19.076,
+    "longitude": 72.8777,
+    "category": "other",
+    "severity": "moderate",
+    "summary": "Heavy smoke and dust near the road",
+    "reportedAt": "2026-09-25T11:13:59.626Z"
+  },
+  {
+    "id": "report-1790353537236",
+    "latitude": null,
+    "longitude": null,
+    "category": "burning",
+    "severity": "moderate",
+    "summary": "heavy smoke",
+    "reportedAt": "2026-09-25T16:25:37.236Z"
+  }
+]
