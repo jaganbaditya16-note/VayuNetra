@@ -13,7 +13,18 @@ import {
 import VayuHeader from "@/components/VayuHeader";
 import VayuMap from "@/components/VayuMapClient";
 
-function normalize(spot: any, index: number) {
+type RawHotspot = {
+  id?: string | number;
+  location?: { city?: string; area?: string; latitude?: number; longitude?: number };
+  severity?: string;
+  confidence?: number;
+  reportCount?: number;
+  possibleContributors?: string[];
+  satelliteEvidence?: unknown;
+  evidenceBasis?: string[];
+};
+
+function normalize(spot: RawHotspot, index: number) {
   return {
     id: String(spot?.id ?? `api-${index}`),
     city: String(spot?.location?.city ?? "Reported area"),
@@ -37,7 +48,7 @@ function normalize(spot: any, index: number) {
 }
 
 export default function MapPage() {
-  const [hotspots, setHotspots] = useState<any[]>([]);
+  const [hotspots, setHotspots] = useState<ReturnType<typeof normalize>[]>([]);
   const [selectedId, setSelectedId] = useState<string>();
   const [filter, setFilter] = useState("All");
   const [loading, setLoading] = useState(true);
@@ -258,33 +269,3 @@ export default function MapPage() {
                             key={item}
                             className="rounded-full bg-white/5 px-2 py-1 text-[9px] text-slate-500"
                           >
-                            {item}
-                          </span>
-                        ))
-                      ) : (
-                        <span className="text-[10px] text-slate-600">
-                          No basis metadata returned.
-                        </span>
-                      )}
-                    </div>
-                  </div>
-                </div>
-
-                <div className="mt-4 rounded-xl border border-cyan-400/10 bg-cyan-400/[0.04] p-4">
-                  <p className="text-[10px] font-bold uppercase tracking-wider text-cyan-300">
-                    Decision support
-                  </p>
-                  <p className="mt-2 text-xs leading-5 text-slate-500">
-                    Confidence is derived from available evidence. A satellite
-                    indicator is not equivalent to CPCB AQI and possible source
-                    hints require verification.
-                  </p>
-                </div>
-              </>
-            )}
-          </aside>
-        </div>
-      </div>
-    </main>
-  );
-}
