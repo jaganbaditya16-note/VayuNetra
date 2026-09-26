@@ -29,6 +29,12 @@ export type CitizenReport = {
   severity: Severity;
   summary: string;
   reportedAt: string;
+  language?: string;
+  description?: string;
+  possibleSources?: string[];
+  recommendedAction?: string;
+  confidence?: number | null;
+  evidence?: Record<string, unknown>;
 };
 
 
