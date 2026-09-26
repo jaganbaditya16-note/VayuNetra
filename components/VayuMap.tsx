@@ -2,7 +2,7 @@
 
 import { useEffect, useRef } from "react";
 import { CircleMarker, MapContainer, TileLayer, useMap } from "react-leaflet";
-import type { LatLngExpression, Map as LeafletMap } from "leaflet";
+import type { LatLngExpression } from "leaflet";
 
 export type VayuMapHotspot = {
   id: string;
@@ -98,46 +98,3 @@ export default function VayuMap({
                 color: "#ffffff",
                 weight: active ? 3 : 2,
                 fillColor: severityColor(spot.severity),
-                fillOpacity: active ? 0.95 : 0.78,
-              }}
-              eventHandlers={{
-                click: () => onSelect?.(spot),
-              }}
-            />
-          );
-        })}
-      </MapContainer>
-
-      <div className="pointer-events-none absolute left-4 top-4 z-[500] rounded-xl border border-white/10 bg-[#07101f]/90 px-3 py-2 shadow-xl backdrop-blur-xl">
-        <div className="flex items-center gap-2 text-[11px] font-semibold text-slate-200">
-          <span className="h-2 w-2 animate-pulse rounded-full bg-cyan-400" />
-          VAYUNETRA EVIDENCE MAP
-        </div>
-        <p className="mt-1 text-[10px] text-slate-500">
-          {hotspots.length} hotspot{hotspots.length === 1 ? "" : "s"} in current evidence
-        </p>
-      </div>
-
-      <div className="absolute bottom-4 left-4 z-[500] rounded-xl border border-white/10 bg-[#07101f]/90 p-3 text-[10px] shadow-xl backdrop-blur-xl">
-        <p className="mb-2 font-semibold uppercase tracking-wider text-slate-400">
-          Severity
-        </p>
-        <div className="grid grid-cols-3 gap-3 text-slate-500">
-          <span className="flex items-center gap-1.5">
-            <i className="h-2 w-2 rounded-full bg-red-500" /> Critical
-          </span>
-          <span className="flex items-center gap-1.5">
-            <i className="h-2 w-2 rounded-full bg-orange-500" /> High
-          </span>
-          <span className="flex items-center gap-1.5">
-            <i className="h-2 w-2 rounded-full bg-yellow-400" /> Moderate
-          </span>
-        </div>
-      </div>
-
-      <div className="absolute bottom-4 right-4 z-[500] rounded-lg border border-white/10 bg-[#07101f]/90 px-2.5 py-1.5 text-[10px] text-slate-400 shadow-xl backdrop-blur-xl">
-        © OpenStreetMap contributors
-      </div>
-    </div>
-  );
-}
