@@ -1,7 +1,34 @@
 "use client";
 
+import Link from "next/link";
 import { useState } from "react";
 import { ArrowLeft, Camera, MapPin, Mic, Send, Sparkles, Upload } from "lucide-react";
+
+type SpeechRecognitionResultLike = {
+  0: { transcript: string };
+};
+
+type SpeechRecognitionEventLike = {
+  results: { 0: SpeechRecognitionResultLike };
+};
+
+type SpeechRecognitionLike = {
+  lang: string;
+  interimResults: boolean;
+  continuous: boolean;
+  onstart: (() => void) | null;
+  onresult: ((event: SpeechRecognitionEventLike) => void) | null;
+  onerror: (() => void) | null;
+  onend: (() => void) | null;
+  start: () => void;
+};
+
+type SpeechRecognitionConstructor = new () => SpeechRecognitionLike;
+
+type WindowWithSpeechRecognition = Window & {
+  SpeechRecognition?: SpeechRecognitionConstructor;
+  webkitSpeechRecognition?: SpeechRecognitionConstructor;
+};
 
 export default function ReportPage() {
   const [language, setLanguage] = useState("English");
@@ -58,9 +85,10 @@ export default function ReportPage() {
     );
   };
   const handleVoiceReport = () => {
+    const speechWindow = window as WindowWithSpeechRecognition;
     const SpeechRecognition =
-      (window as any).SpeechRecognition ||
-      (window as any).webkitSpeechRecognition;
+      speechWindow.SpeechRecognition ||
+      speechWindow.webkitSpeechRecognition;
 
     if (!SpeechRecognition) {
       alert("Speech recognition is not supported in this browser.");
@@ -77,7 +105,7 @@ export default function ReportPage() {
       setListening(true);
     };
 
-    recognition.onresult = (event: any) => {
+    recognition.onresult = (event: SpeechRecognitionEventLike) => {
       const transcript = event.results[0][0].transcript;
       setDescription((current) =>
         current ? `${current} ${transcript}` : transcript
@@ -268,7 +296,7 @@ export default function ReportPage() {
     <main className="min-h-screen bg-[#07110f] text-white">
       <header className="border-b border-white/10 bg-[#091613]/90">
         <div className="mx-auto flex max-w-7xl items-center justify-between px-6 py-5">
-          <a href="/" className="flex items-center gap-3">
+          <Link href="/" className="flex items-center gap-3">
             <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-emerald-400/15 text-emerald-300">
               <Sparkles size={20} />
             </div>
@@ -276,15 +304,15 @@ export default function ReportPage() {
               <h1 className="text-lg font-bold">VayuNetra</h1>
               <p className="text-xs text-white/45">Community Environmental Intelligence</p>
             </div>
-          </a>
+          </Link>
 
-          <a
+          <Link
             href="/"
             className="flex items-center gap-2 rounded-xl border border-white/10 px-4 py-2 text-sm text-white/70 transition hover:bg-white/5"
           >
             <ArrowLeft size={16} />
             Dashboard
-          </a>
+          </Link>
         </div>
       </header>
 
@@ -515,13 +543,18 @@ export default function ReportPage() {
                     </div>
                   </div>
                 )}
+                {submitError && (
+                  <div className="mb-4 rounded-xl border border-red-400/20 bg-red-400/5 px-4 py-3 text-xs text-red-300">
+                    {submitError}
+                  </div>
+                )}
                 <button
                   onClick={handleSubmit}
-                disabled={!description.trim()}
+                  disabled={!description.trim() || submitting}
                 className="flex w-full items-center justify-center gap-2 rounded-2xl bg-emerald-400 px-5 py-4 text-sm font-bold text-black transition hover:bg-emerald-300 disabled:cursor-not-allowed disabled:opacity-30"
               >
                 <Send size={17} />
-                Submit environmental report
+                {submitting ? "Analyzing and submitting…" : "Submit environmental report"}
               </button>
             </div>
 
