@@ -120,7 +120,7 @@ Important:
       success: true,
       analysis,
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("Gemini analysis error:", error);
 
     if (errorStatus(error) === 429) {
