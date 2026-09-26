@@ -1,0 +1,107 @@
+[
+  {
+    "id": "ctx-mumbai-chembur",
+    "name": "Chembur demonstration context",
+    "state": "Maharashtra",
+    "country": "India",
+    "latitude": 19.052,
+    "longitude": 72.894,
+    "populationExposure": 0.82,
+    "infrastructureGap": 0.72,
+    "investmentAlignment": 0.68,
+    "inclusionNeed": 0.64,
+    "existingServices": ["environmental monitoring", "municipal services"],
+    "plannedPrograms": ["illustrative public-investment context"],
+    "contextStatus": "illustrative",
+    "sources": [
+      "Prototype context only",
+      "Census India / data.gov.in can supply population context",
+      "CPCB / public monitoring data can supply environmental context",
+      "PM GatiShakti can supply infrastructure-project context"
+    ]
+  },
+  {
+    "id": "ctx-delhi-anand-vihar",
+    "name": "Anand Vihar demonstration context",
+    "state": "Delhi",
+    "country": "India",
+    "latitude": 28.646,
+    "longitude": 77.316,
+    "populationExposure": 0.9,
+    "infrastructureGap": 0.76,
+    "investmentAlignment": 0.72,
+    "inclusionNeed": 0.58,
+    "existingServices": ["environmental monitoring", "transport infrastructure"],
+    "plannedPrograms": ["illustrative public-investment context"],
+    "contextStatus": "illustrative",
+    "sources": [
+      "Prototype context only",
+      "Census India / data.gov.in can supply population context",
+      "CPCB / public monitoring data can supply environmental context",
+      "PM GatiShakti can supply infrastructure-project context"
+    ]
+  },
+  {
+    "id": "ctx-pune-hadapsar",
+    "name": "Hadapsar demonstration context",
+    "state": "Maharashtra",
+    "country": "India",
+    "latitude": 18.508,
+    "longitude": 73.926,
+    "populationExposure": 0.74,
+    "infrastructureGap": 0.69,
+    "investmentAlignment": 0.65,
+    "inclusionNeed": 0.62,
+    "existingServices": ["municipal services", "transport infrastructure"],
+    "plannedPrograms": ["illustrative public-investment context"],
+    "contextStatus": "illustrative",
+    "sources": [
+      "Prototype context only",
+      "Census India / data.gov.in can supply population context",
+      "CPCB / public monitoring data can supply environmental context",
+      "PM GatiShakti can supply infrastructure-project context"
+    ]
+  },
+  {
+    "id": "ctx-ahmedabad-naroda",
+    "name": "Naroda demonstration context",
+    "state": "Gujarat",
+    "country": "India",
+    "latitude": 23.052,
+    "longitude": 72.668,
+    "populationExposure": 0.77,
+    "infrastructureGap": 0.7,
+    "investmentAlignment": 0.7,
+    "inclusionNeed": 0.6,
+    "existingServices": ["industrial infrastructure", "municipal services"],
+    "plannedPrograms": ["illustrative public-investment context"],
+    "contextStatus": "illustrative",
+    "sources": [
+      "Prototype context only",
+      "Census India / data.gov.in can supply population context",
+      "CPCB / public monitoring data can supply environmental context",
+      "PM GatiShakti can supply infrastructure-project context"
+    ]
+  },
+  {
+    "id": "ctx-kolkata-ballygunge",
+    "name": "Ballygunge demonstration context",
+    "state": "West Bengal",
+    "country": "India",
+    "latitude": 22.522,
+    "longitude": 88.365,
+    "populationExposure": 0.71,
+    "infrastructureGap": 0.63,
+    "investmentAlignment": 0.61,
+    "inclusionNeed": 0.66,
+    "existingServices": ["municipal services", "transport infrastructure"],
+    "plannedPrograms": ["illustrative public-investment context"],
+    "contextStatus": "illustrative",
+    "sources": [
+      "Prototype context only",
+      "Census India / data.gov.in can supply population context",
+      "CPCB / public monitoring data can supply environmental context",
+      "PM GatiShakti can supply infrastructure-project context"
+    ]
+  }
+]
