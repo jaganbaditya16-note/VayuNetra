@@ -13,6 +13,13 @@ import {
 import VayuHeader from "@/components/VayuHeader";
 import VayuMap from "@/components/VayuMapClient";
 
+type SatelliteEvidence = {
+  value?: number | null;
+  unit?: string;
+  source?: string;
+  measuredAt?: string | null;
+};
+
 type RawHotspot = {
   id?: string | number;
   location?: { city?: string; area?: string; latitude?: number; longitude?: number };
@@ -20,47 +27,65 @@ type RawHotspot = {
   confidence?: number;
   reportCount?: number;
   possibleContributors?: string[];
-  satelliteEvidence?: unknown;
+  satelliteEvidence?: SatelliteEvidence;
   evidenceBasis?: string[];
 };
 
-function normalize(spot: RawHotspot, index: number) {
+type NormalizedHotspot = {
+  id: string;
+  city: string;
+  area: string;
+  latitude: number;
+  longitude: number;
+  severity: string;
+  confidence: number;
+  reports: number;
+  source: string;
+  satelliteEvidence?: SatelliteEvidence;
+  evidenceBasis: string[];
+};
+
+function normalize(spot: RawHotspot, index: number): NormalizedHotspot {
   return {
-    id: String(spot?.id ?? `api-${index}`),
-    city: String(spot?.location?.city ?? "Reported area"),
-    area: String(spot?.location?.area ?? "Citizen hotspot"),
-    latitude: Number(spot?.location?.latitude ?? 20),
-    longitude: Number(spot?.location?.longitude ?? 78),
-    severity: String(spot?.severity ?? "moderate").replace(
+    id: String(spot.id ?? `api-${index}`),
+    city: String(spot.location?.city ?? "Reported area"),
+    area: String(spot.location?.area ?? "Citizen hotspot"),
+    latitude: Number(spot.location?.latitude ?? 20),
+    longitude: Number(spot.location?.longitude ?? 78),
+    severity: String(spot.severity ?? "moderate").replace(
       /^./,
       (value: string) => value.toUpperCase(),
     ),
-    confidence: Math.round(Number(spot?.confidence ?? 0) * 100),
-    reports: Number(spot?.reportCount ?? 0),
+    confidence: Math.round(Number(spot.confidence ?? 0) * 100),
+    reports: Number(spot.reportCount ?? 0),
     source: String(
-      spot?.possibleContributors?.[0] ?? "Unspecified local source",
+      spot.possibleContributors?.[0] ?? "Unspecified local source",
     ),
-    satelliteEvidence: spot?.satelliteEvidence,
-    evidenceBasis: Array.isArray(spot?.evidenceBasis)
+    satelliteEvidence: spot.satelliteEvidence,
+    evidenceBasis: Array.isArray(spot.evidenceBasis)
       ? spot.evidenceBasis
       : [],
   };
 }
 
 export default function MapPage() {
-  const [hotspots, setHotspots] = useState<ReturnType<typeof normalize>[]>([]);
+  const [hotspots, setHotspots] = useState<NormalizedHotspot[]>([]);
   const [selectedId, setSelectedId] = useState<string>();
   const [filter, setFilter] = useState("All");
   const [loading, setLoading] = useState(true);
 
-  const load = () => {
-    setLoading(true);
+  useEffect(() => {
+    let active = true;
 
     fetch("/api/hotspots")
       .then((response) => response.json())
       .then((data) => {
+        if (!active) return;
+
         const values = Array.isArray(data?.hotspots)
-          ? data.hotspots.map(normalize)
+          ? data.hotspots.map((spot: RawHotspot, index: number) =>
+              normalize(spot, index),
+            )
           : [];
 
         setHotspots(values);
@@ -71,23 +96,26 @@ export default function MapPage() {
             : null;
 
         setSelectedId(
-          requestedId && values.some((item: any) => item.id === requestedId)
+          requestedId && values.some((item) => item.id === requestedId)
             ? requestedId
             : values[0]?.id,
         );
       })
       .catch(() => {
+        if (!active) return;
         setHotspots([]);
         setSelectedId(undefined);
       })
-      .finally(() => setLoading(false));
-  };
+      .finally(() => {
+        if (active) setLoading(false);
+      });
 
-  useEffect(() => {
-    load();
+    return () => {
+      active = false;
+    };
   }, []);
 
-  const visible = useMemo(
+    const visible = useMemo(
     () =>
       filter === "All"
         ? hotspots
@@ -148,124 +176,3 @@ export default function MapPage() {
               }`}
             >
               {item}
-            </button>
-          ))}
-        </div>
-
-        <div className="grid gap-5 xl:grid-cols-[minmax(0,1.8fr)_390px]">
-          <div className="overflow-hidden rounded-2xl border border-white/[0.08] bg-[#07101d] p-1">
-            <VayuMap
-              hotspots={visible}
-              selectedId={selected?.id}
-              onSelect={(item) => setSelectedId(item.id)}
-              className="h-[620px] lg:h-[720px]"
-              focusSelected
-            />
-          </div>
-
-          <aside className="rounded-2xl border border-white/[0.08] bg-white/[0.025] p-5">
-            {!selected ? (
-              <div className="flex h-full min-h-[400px] flex-col items-center justify-center text-center">
-                <Crosshair className="h-8 w-8 text-slate-700" />
-                <p className="mt-4 text-sm font-semibold">
-                  No hotspot evidence available
-                </p>
-                <p className="mt-2 max-w-xs text-xs leading-5 text-slate-600">
-                  Submit a report with a permitted location or connect another
-                  evidence source to populate the map.
-                </p>
-                <Link
-                  href="/report"
-                  className="mt-5 rounded-xl bg-cyan-300 px-4 py-2.5 text-xs font-bold text-slate-950"
-                >
-                  Report an issue
-                </Link>
-              </div>
-            ) : (
-              <>
-                <p className="text-[10px] font-bold tracking-[0.18em] text-cyan-400">
-                  HOTSPOT EVIDENCE
-                </p>
-
-                <div className="mt-2 flex items-start justify-between gap-3">
-                  <div>
-                    <h2 className="text-2xl font-bold">{selected.area}</h2>
-                    <p className="text-sm text-slate-500">{selected.city}</p>
-                  </div>
-                  <span className="rounded-full border border-white/10 bg-white/5 px-2.5 py-1 text-[10px] font-bold">
-                    {selected.severity}
-                  </span>
-                </div>
-
-                <div className="mt-5 grid grid-cols-2 gap-3">
-                  <div className="rounded-xl bg-black/20 p-4">
-                    <p className="text-[10px] text-slate-500">Confidence</p>
-                    <p className="mt-2 text-2xl font-bold text-cyan-300">
-                      {selected.confidence}%
-                    </p>
-                  </div>
-                  <div className="rounded-xl bg-black/20 p-4">
-                    <p className="text-[10px] text-slate-500">Reports</p>
-                    <p className="mt-2 text-2xl font-bold">
-                      {selected.reports}
-                    </p>
-                  </div>
-                </div>
-
-                <div className="mt-4 space-y-2">
-                  <div className="rounded-xl bg-black/20 p-4">
-                    <div className="flex items-center justify-between">
-                      <span className="flex items-center gap-2 text-xs text-slate-400">
-                        <Users className="h-4 w-4 text-cyan-400" />
-                        Citizen evidence
-                      </span>
-                      <span className="text-xs font-semibold">
-                        {selected.reports}
-                      </span>
-                    </div>
-                  </div>
-
-                  <div className="rounded-xl bg-black/20 p-4">
-                    <div className="flex items-center justify-between">
-                      <span className="flex items-center gap-2 text-xs text-slate-400">
-                        <Satellite className="h-4 w-4 text-cyan-400" />
-                        Satellite evidence
-                      </span>
-                      <span className="text-[10px] text-slate-400">
-                        {selected.satelliteEvidence
-                          ? "Available"
-                          : "Unavailable"}
-                      </span>
-                    </div>
-
-                    {selected.satelliteEvidence && (
-                      <>
-                        <p className="mt-2 text-xs font-semibold text-slate-200">
-                          {Number(
-                            selected.satelliteEvidence.value,
-                          ).toExponential(4)}{" "}
-                          {selected.satelliteEvidence.unit ?? ""}
-                        </p>
-                        <p className="mt-1 text-[10px] leading-5 text-slate-600">
-                          {selected.satelliteEvidence.source ??
-                            "Satellite source"}{" "}
-                          ·{" "}
-                          {selected.satelliteEvidence.measuredAt ??
-                            "Measurement period unavailable"}
-                        </p>
-                      </>
-                    )}
-                  </div>
-
-                  <div className="rounded-xl bg-black/20 p-4">
-                    <div className="flex items-center gap-2 text-xs text-slate-400">
-                      <ShieldCheck className="h-4 w-4 text-cyan-400" />
-                      Evidence basis
-                    </div>
-                    <div className="mt-2 flex flex-wrap gap-1.5">
-                      {selected.evidenceBasis.length ? (
-                        selected.evidenceBasis.map((item: string) => (
-                          <span
-                            key={item}
-                            className="rounded-full bg-white/5 px-2 py-1 text-[9px] text-slate-500"
-                          >
