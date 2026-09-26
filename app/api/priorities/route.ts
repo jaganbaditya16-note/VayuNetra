@@ -30,7 +30,7 @@ function distanceSquared(
 export async function GET() {
   try {
     const contexts = contextData as DevelopmentContext[];
-    const reports = getReports().filter(hasLocation);
+    const reports = (await getReports()).filter(hasLocation);
 
     const groups: LocatedReport[][] = [];
 
