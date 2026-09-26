@@ -4,12 +4,12 @@ import { buildDevelopmentPriority, rankDevelopmentPriorities } from "@/lib/prior
 import type { DevelopmentContext } from "@/lib/priorities/types";
 import contextData from "@/data/development-context.json";
 
-type LocatedReport = ReturnType<typeof getReports>[number] & {
+type LocatedReport = Awaited<ReturnType<typeof getReports>>[number] & {
   latitude: number;
   longitude: number;
 };
 
-function hasLocation(report: ReturnType<typeof getReports>[number]): report is LocatedReport {
+function hasLocation(report: Awaited<ReturnType<typeof getReports>>[number]): report is LocatedReport {
   return (
     typeof report.latitude === "number" &&
     typeof report.longitude === "number" &&
