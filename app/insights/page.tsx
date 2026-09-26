@@ -369,3 +369,37 @@ export default function InsightsPage() {
                   <h2 className="mt-1 font-semibold">
                     Evidence-aware follow-up
                   </h2>
+                </div>
+                <CircleAlert className="h-5 w-5 text-cyan-400" />
+              </div>
+
+              <div className="mt-4 grid gap-3 md:grid-cols-3">
+                {[
+                  [
+                    "1. Validate",
+                    "Compare satellite-derived indicators with official ground observations wherever available.",
+                  ],
+                  [
+                    "2. Enrich",
+                    "Collect additional nearby reports when current confidence is weak.",
+                  ],
+                  [
+                    "3. Escalate",
+                    "Use stronger multi-source agreement to determine where human verification should happen first.",
+                  ],
+                ].map(([title, description]) => (
+                  <div key={title} className="rounded-xl bg-black/20 p-4">
+                    <p className="text-xs font-semibold">{title}</p>
+                    <p className="mt-2 text-[11px] leading-5 text-slate-500">
+                      {description}
+                    </p>
+                  </div>
+                ))}
+              </div>
+            </section>
+          </>
+        )}
+      </div>
+    </main>
+  );
+}
