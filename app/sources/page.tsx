@@ -35,7 +35,31 @@ const sources = [
     title: "Google Gemini",
     icon: BrainCircuit,
     description:
-      "Gemini is used to structure multilingual citizen reports, summarize evidence, identify categories and suggest possible follow-up actions.",
+      "Gemini structures multilingual citizen reports, extracts categories and severity, and turns unstructured community observations into machine-readable evidence for the prioritization pipeline.",
+  },
+  {
+    title: "Census India / Open Government Data",
+    icon: Database,
+    description:
+      "Population and socioeconomic context can be sourced from Census India and the Government Open Data platform. The current prototype keeps any illustrative context explicitly labelled until verified data is connected.",
+  },
+  {
+    title: "UDISE+ / Government Open Data",
+    icon: Database,
+    description:
+      "Education infrastructure datasets provide examples of public-service infrastructure context that can be connected to demand clusters.",
+  },
+  {
+    title: "PM GatiShakti / Infrastructure Planning",
+    icon: Globe2,
+    description:
+      "PM GatiShakti provides a model for combining ongoing and future infrastructure projects with GIS layers. VayuNetra treats this as planning context, not as a claim of direct live access in the prototype.",
+  },
+  {
+    title: "MoSPI Infrastructure Statistics",
+    icon: Code2,
+    description:
+      "MoSPI infrastructure statistics provide national and state-level infrastructure indicators and document data gaps. They are suitable for the production context layer.",
   },
 ];
 
@@ -105,7 +129,7 @@ export default function SourcesPage() {
               ["01", "Collect", "Citizen reports and available environmental observations."],
               ["02", "Understand", "AI structures multilingual reports into usable evidence."],
               ["03", "Fuse", "Location, citizen evidence and satellite indicators are combined."],
-              ["04", "Prioritize", "A confidence-aware hotspot and follow-up action are generated."],
+              ["04", "Prioritize", "Demand, evidence and planning context produce a transparent development-priority signal."],
             ].map(([number, title, description]) => (
               <div
                 key={number}

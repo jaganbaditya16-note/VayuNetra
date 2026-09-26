@@ -112,12 +112,17 @@ function getSatelliteReading(
       "earth_engine.py"
     );
 
-    const childProcess = spawn("py", [
+    const pythonCommand = process.platform === "win32" ? "py" : "python3";
+    const endDate = new Date();
+    const startDate = new Date(endDate.getTime() - 5 * 24 * 60 * 60 * 1000);
+    const formatDate = (value: Date) => value.toISOString().slice(0, 10);
+
+    const childProcess = spawn(pythonCommand, [
       scriptPath,
       String(latitude),
       String(longitude),
-      "2026-09-20",
-      "2026-09-25",
+      formatDate(startDate),
+      formatDate(endDate),
     ]);
 
     let stdout = "";
@@ -183,7 +188,7 @@ function getSatelliteReading(
 
 export async function GET() {
   try {
-    const reports = getReports();
+    const reports = await getReports();
     const locatedReports = reports.filter(hasValidLocation);
 
     if (locatedReports.length === 0) {

@@ -8,6 +8,14 @@ const ai = new GoogleGenAI({
 const sleep = (ms: number) =>
   new Promise((resolve) => setTimeout(resolve, ms));
 
+function errorStatus(error: unknown) {
+  if (typeof error === "object" && error !== null && "status" in error) {
+    const status = (error as { status?: unknown }).status;
+    return typeof status === "number" ? status : undefined;
+  }
+  return undefined;
+}
+
 export async function POST(request: Request) {
   try {
     const body = await request.json();
@@ -91,10 +99,10 @@ Important:
         });
 
         break;
-      } catch (error: any) {
+      } catch (error: unknown) {
         console.error(`Gemini attempt ${attempt} failed:`, error);
 
-        const status = error?.status;
+        const status = errorStatus(error);
 
         if (status === 429) {
           throw error;
@@ -120,10 +128,10 @@ Important:
       success: true,
       analysis,
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("Gemini analysis error:", error);
 
-    if (error?.status === 429) {
+    if (errorStatus(error) === 429) {
       return NextResponse.json(
         {
           error:

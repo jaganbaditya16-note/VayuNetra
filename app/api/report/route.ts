@@ -23,7 +23,7 @@ const VALID_SEVERITIES = new Set([
 
 export async function GET() {
   try {
-    const reports = getReports();
+    const reports = await getReports();
 
     return NextResponse.json({
       success: true,
@@ -80,7 +80,7 @@ export async function POST(request: Request) {
         ? (analysis.severity as Severity)
         : "moderate";
 
-    const report = addReport({
+    const report = await addReport({
       id: `report-${Date.now()}`,
       latitude,
       longitude,
@@ -91,6 +91,23 @@ export async function POST(request: Request) {
           ? analysis.summary.trim()
           : description.trim(),
       reportedAt: new Date().toISOString(),
+      language: language || "en",
+      description: description.trim(),
+      possibleSources: Array.isArray(analysis?.possibleSources)
+        ? analysis.possibleSources
+        : [],
+      recommendedAction:
+        typeof analysis?.recommendedAction === "string"
+          ? analysis.recommendedAction
+          : undefined,
+      confidence:
+        typeof analysis?.confidence === "number"
+          ? analysis.confidence
+          : null,
+      evidence: {
+        provider: analysis?.provider ?? "unknown",
+        environmentalEvidence: analysis?.environmentalEvidence ?? null,
+      },
     });
 
     return NextResponse.json({

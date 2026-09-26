@@ -19,6 +19,33 @@ import {
 import VayuHeader from "@/components/VayuHeader";
 import VayuMap from "@/components/VayuMapClient";
 
+type SatelliteEvidence = {
+  value?: number | null;
+  unit?: string;
+  source?: string;
+};
+
+type Report = {
+  id?: string;
+  location?: string;
+  summary?: string;
+  text?: string;
+  category?: string;
+  type?: string;
+  reportedAt?: string;
+};
+
+type RawHotspot = {
+  id?: string | number;
+  location?: { city?: string; area?: string; latitude?: number; longitude?: number };
+  severity?: string;
+  confidence?: number;
+  reportCount?: number;
+  possibleContributors?: string[];
+  satelliteEvidence?: SatelliteEvidence;
+  isSample?: boolean;
+};
+
 type Hotspot = {
   id: string;
   city: string;
@@ -29,7 +56,7 @@ type Hotspot = {
   confidence: number;
   reports: number;
   source: string;
-  satelliteEvidence?: any;
+  satelliteEvidence?: SatelliteEvidence;
   isSample?: boolean;
 };
 
@@ -117,7 +144,7 @@ const demoReports = [
   },
 ];
 
-function normalizeHotspot(spot: any, index: number): Hotspot {
+function normalizeHotspot(spot: RawHotspot, index: number): Hotspot {
   const latitude = Number(spot?.location?.latitude);
   const longitude = Number(spot?.location?.longitude);
 
@@ -152,7 +179,7 @@ function severityTone(severity: string) {
 
 export default function Home() {
   const [hotspots, setHotspots] = useState<Hotspot[]>([]);
-  const [reports, setReports] = useState<any[]>([]);
+  const [reports, setReports] = useState<Report[]>([]);
   const [selectedId, setSelectedId] = useState<string>();
   const [filter, setFilter] = useState("All");
   const [loading, setLoading] = useState(true);
