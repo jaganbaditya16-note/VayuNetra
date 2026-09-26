@@ -19,6 +19,31 @@ import {
 import VayuHeader from "@/components/VayuHeader";
 import VayuMap from "@/components/VayuMapClient";
 
+type Report = {
+  id?: string;
+  location?: string;
+  summary?: string;
+  text?: string;
+  category?: string;
+  type?: string;
+  reportedAt?: string;
+};
+
+type RawHotspot = {
+  id?: string | number;
+  location?: { city?: string; area?: string; latitude?: number; longitude?: number };
+  severity?: string;
+  confidence?: number;
+  reportCount?: number;
+  possibleContributors?: string[];
+  satelliteEvidence?: {
+    value?: number | null;
+    unit?: string;
+    source?: string;
+  };
+  isSample?: boolean;
+};
+
 type Hotspot = {
   id: string;
   city: string;
@@ -117,7 +142,7 @@ const demoReports = [
   },
 ];
 
-function normalizeHotspot(spot: any, index: number): Hotspot {
+function normalizeHotspot(spot: RawHotspot, index: number): Hotspot {
   const latitude = Number(spot?.location?.latitude);
   const longitude = Number(spot?.location?.longitude);
 
@@ -152,7 +177,7 @@ function severityTone(severity: string) {
 
 export default function Home() {
   const [hotspots, setHotspots] = useState<Hotspot[]>([]);
-  const [reports, setReports] = useState<any[]>([]);
+  const [reports, setReports] = useState<Report[]>([]);
   const [selectedId, setSelectedId] = useState<string>();
   const [filter, setFilter] = useState("All");
   const [loading, setLoading] = useState(true);
@@ -418,225 +443,3 @@ export default function Home() {
                   <p className="text-[10px] text-slate-500">AI confidence</p>
                   <p className="mt-2 text-2xl font-bold text-cyan-300">
                     {selected.confidence}%
-                  </p>
-                </div>
-                <div className="rounded-xl border border-white/[0.07] bg-black/20 p-4">
-                  <p className="text-[10px] text-slate-500">Citizen reports</p>
-                  <p className="mt-2 text-2xl font-bold">
-                    {selected.reports}
-                  </p>
-                </div>
-              </div>
-
-              <div className="mt-3 rounded-xl border border-white/[0.07] bg-black/20 p-4">
-                <div className="flex items-center justify-between text-[10px] uppercase tracking-wider">
-                  <span className="text-slate-500">Evidence strength</span>
-                  <span className="text-cyan-300">
-                    {selected.confidence}%
-                  </span>
-                </div>
-                <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-slate-800">
-                  <div
-                    className="h-full rounded-full bg-cyan-300"
-                    style={{
-                      width: `${Math.min(selected.confidence, 100)}%`,
-                    }}
-                  />
-                </div>
-              </div>
-
-              <div className="mt-3 space-y-2">
-                <div className="flex items-center justify-between rounded-xl bg-black/20 px-3 py-3">
-                  <span className="flex items-center gap-2 text-xs text-slate-400">
-                    <CircleUserRound className="h-4 w-4 text-cyan-400" />
-                    Citizen observations
-                  </span>
-                  <b className="text-xs">{selected.reports}</b>
-                </div>
-
-                <div className="rounded-xl bg-black/20 px-3 py-3">
-                  <div className="flex items-center justify-between">
-                    <span className="flex items-center gap-2 text-xs text-slate-400">
-                      <Cloud className="h-4 w-4 text-cyan-400" />
-                      Satellite indicator
-                    </span>
-                    <span className="text-[10px] text-slate-300">
-                      {selected.satelliteEvidence ? "Available" : "Unavailable"}
-                    </span>
-                  </div>
-                  {selected.satelliteEvidence && (
-                    <p className="mt-2 text-[10px] leading-5 text-slate-500">
-                      {Number(selected.satelliteEvidence.value).toExponential(3)}{" "}
-                      {selected.satelliteEvidence.unit ?? ""} ·{" "}
-                      {selected.satelliteEvidence.source ?? "Satellite source"}
-                    </p>
-                  )}
-                </div>
-
-                <div className="rounded-xl bg-black/20 px-3 py-3">
-                  <span className="flex items-center gap-2 text-xs text-slate-400">
-                    <Database className="h-4 w-4 text-cyan-400" />
-                    Evidence source hint
-                  </span>
-                  <p className="mt-1 text-[10px] text-slate-500">
-                    {selected.source}
-                  </p>
-                </div>
-              </div>
-
-              <div className="mt-4 rounded-xl border border-cyan-400/10 bg-cyan-400/[0.04] p-4">
-                <div className="flex gap-3">
-                  <Sparkles className="mt-0.5 h-4 w-4 shrink-0 text-cyan-300" />
-                  <p className="text-xs leading-5 text-slate-400">
-                    {selected.reports} citizen report
-                    {selected.reports === 1 ? "" : "s"} currently support this
-                    hotspot alongside{" "}
-                    {selected.satelliteEvidence
-                      ? "a satellite-derived environmental indicator"
-                      : "the available evidence"}
-                    . This is decision support, not an official pollution or
-                    AQI verdict.
-                  </p>
-                </div>
-              </div>
-
-              <Link
-                href={`/map?hotspot=${encodeURIComponent(selected.id)}`}
-                className="mt-4 flex w-full items-center justify-center gap-2 rounded-xl bg-cyan-300 py-3 text-xs font-bold text-slate-950 transition hover:bg-cyan-200"
-              >
-                Open full evidence view
-                <ChevronRight className="h-4 w-4" />
-              </Link>
-            </aside>
-          )}
-        </section>
-
-        <section className="mt-5 grid gap-5 lg:grid-cols-[1.2fr_0.8fr]">
-          <div className="rounded-2xl border border-white/[0.08] bg-white/[0.025] p-5">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-[10px] font-bold tracking-[0.18em] text-cyan-400">
-                  COMMUNITY SIGNALS
-                </p>
-                <h2 className="mt-1 font-semibold">
-                  Recent reports entering the pipeline
-                </h2>
-              </div>
-              <Link
-                href="/report"
-                className="text-[11px] font-semibold text-cyan-300 hover:text-cyan-200"
-              >
-                Submit report →
-              </Link>
-            </div>
-
-            <div className="mt-4 space-y-2">
-              {reports.slice(0, 5).map((report, index) => (
-                <div
-                  key={String(report.id ?? `${report.location}-${index}`)}
-                  className="flex items-start gap-3 rounded-xl border border-white/[0.06] bg-black/15 p-3.5"
-                >
-                  <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-cyan-400/10">
-                    <FileText className="h-4 w-4 text-cyan-300" />
-                  </div>
-
-                  <div className="min-w-0 flex-1">
-                    <div className="flex flex-wrap items-center justify-between gap-2">
-                      <p className="truncate text-xs font-semibold text-slate-200">
-                        {report.location ?? "Reported area"}
-                      </p>
-                      <span className="text-[10px] text-slate-600">
-                        {report.reportedAt
-                          ? new Date(report.reportedAt).toLocaleString()
-                          : "Recent"}
-                      </span>
-                    </div>
-
-                    <p className="mt-1 line-clamp-2 text-[11px] leading-5 text-slate-500">
-                      {report.summary ??
-                        report.text ??
-                        "Environmental observation"}
-                    </p>
-
-                    <span className="mt-2 inline-flex rounded-full bg-white/5 px-2 py-1 text-[9px] text-slate-500">
-                      {report.category ?? report.type ?? "Environmental"}
-                    </span>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          <div className="rounded-2xl border border-white/[0.08] bg-white/[0.025] p-5">
-            <div>
-              <p className="text-[10px] font-bold tracking-[0.18em] text-cyan-400">
-                AI ACTION CENTER
-              </p>
-              <h2 className="mt-1 font-semibold">
-                Evidence-aware next steps
-              </h2>
-            </div>
-
-            <div className="mt-4 space-y-2">
-              {actions.map((action, index) => (
-                <div
-                  key={action}
-                  className="flex gap-3 rounded-xl border border-white/[0.06] bg-black/15 p-3.5"
-                >
-                  <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-lg bg-cyan-400/10 text-[10px] font-bold text-cyan-300">
-                    0{index + 1}
-                  </span>
-                  <p className="text-[11px] leading-5 text-slate-500">
-                    {action}
-                  </p>
-                </div>
-              ))}
-            </div>
-          </div>
-        </section>
-
-        <section className="mt-5 rounded-2xl border border-white/[0.08] bg-white/[0.025] p-5 sm:p-6">
-          <div className="flex flex-col justify-between gap-3 sm:flex-row sm:items-end">
-            <div>
-              <p className="text-[10px] font-bold tracking-[0.18em] text-cyan-400">
-                THE INTELLIGENCE LOOP
-              </p>
-              <h2 className="mt-1 text-lg font-semibold">
-                One evidence chain, from observation to action
-              </h2>
-            </div>
-            <Link
-              href="/sources"
-              className="text-xs font-semibold text-slate-400 hover:text-white"
-            >
-              Read methodology →
-            </Link>
-          </div>
-
-          <div className="mt-5 grid gap-3 md:grid-cols-4">
-            {[
-              ["01", "Report", "Citizen text, voice and location become structured observations."],
-              ["02", "Understand", "Gemini extracts category, severity, summary and possible source hints."],
-              ["03", "Fuse", "Citizen evidence is combined with satellite and public monitoring signals."],
-              ["04", "Prioritize", "Transparent evidence and planning context turn demand clusters into development priorities."],
-
-            ].map(([number, title, description]) => (
-              <div
-                key={number}
-                className="rounded-xl border border-white/[0.06] bg-black/15 p-4"
-              >
-                <span className="text-[10px] font-bold text-cyan-300">
-                  {number}
-                </span>
-                <h3 className="mt-2 text-sm font-semibold">{title}</h3>
-                <p className="mt-2 text-[11px] leading-5 text-slate-500">
-                  {description}
-                </p>
-              </div>
-            ))}
-          </div>
-        </section>
-      </div>
-    </main>
-  );
-}
