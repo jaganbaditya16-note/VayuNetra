@@ -188,7 +188,7 @@ function getSatelliteReading(
 
 export async function GET() {
   try {
-    const reports = getReports();
+    const reports = await getReports();
     const locatedReports = reports.filter(hasValidLocation);
 
     if (locatedReports.length === 0) {
