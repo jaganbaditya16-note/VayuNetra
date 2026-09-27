@@ -18,9 +18,78 @@ function errorStatus(error: unknown) {
 
 export async function POST(request: Request) {
   try {
-    const body = await request.json();
+    const contentType = request.headers.get("content-type") ?? "";
 
-    const { description, language, location, evidence } = body;
+    let description = "";
+    let language = "English";
+    let location: unknown = null;
+    let evidence: unknown = null;
+    let imageData:
+      | {
+          mimeType: string;
+          data: string;
+        }
+      | null = null;
+
+    if (contentType.includes("multipart/form-data")) {
+      const formData = await request.formData();
+
+      description = String(formData.get("description") ?? "");
+      language = String(formData.get("language") ?? "English");
+
+      const locationValue = formData.get("location");
+      const evidenceValue = formData.get("evidence");
+
+      if (typeof locationValue === "string" && locationValue.trim()) {
+        location = JSON.parse(locationValue);
+      }
+
+      if (typeof evidenceValue === "string" && evidenceValue.trim()) {
+        evidence = JSON.parse(evidenceValue);
+      }
+
+      const image = formData.get("image");
+
+      if (image instanceof File && image.size > 0) {
+        const allowedImageTypes = new Set([
+          "image/jpeg",
+          "image/png",
+          "image/webp",
+        ]);
+
+        if (!allowedImageTypes.has(image.type)) {
+          return NextResponse.json(
+            {
+              error: "Only JPEG, PNG, and WebP images are supported.",
+            },
+            { status: 400 }
+          );
+        }
+
+        if (image.size > 8 * 1024 * 1024) {
+          return NextResponse.json(
+            {
+              error: "Photo must be 8 MB or smaller.",
+            },
+            { status: 413 }
+          );
+        }
+
+        const bytes = await image.arrayBuffer();
+
+        imageData = {
+          mimeType: image.type,
+          data: Buffer.from(bytes).toString("base64"),
+        };
+      }
+    } else {
+      const body = await request.json();
+
+      description = body.description ?? "";
+      language = body.language || "English";
+      location = body.location ?? null;
+      evidence = body.evidence ?? null;
+    }
 
     if (!description || !description.trim()) {
       return NextResponse.json(
@@ -45,6 +114,13 @@ ${JSON.stringify(location || "Not provided")}
 
 Environmental evidence available to the system:
 ${JSON.stringify(evidence || "Not available")}
+
+Photo evidence:
+${
+  imageData
+    ? "A citizen photo is attached. Use only visibly supported details from the image."
+    : "No photo was attached."
+}
 
 Use environmental evidence only as supporting context. Do not treat satellite indicators as AQI, and do not claim a pollution source is confirmed unless the evidence explicitly supports that conclusion.
 
@@ -92,7 +168,17 @@ Important:
       try {
         response = await ai.models.generateContent({
           model: "gemini-3.8-flash",
-          contents: prompt,
+          contents: imageData
+            ? [
+                {
+                  inlineData: {
+                    mimeType: imageData.mimeType,
+                    data: imageData.data,
+                  },
+                },
+                { text: prompt },
+              ]
+            : prompt,
           config: {
             responseMimeType: "application/json",
           },

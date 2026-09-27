@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
+import { type ChangeEvent, useRef, useState } from "react";
 import { ArrowLeft, Camera, MapPin, Mic, Send, Sparkles, Upload } from "lucide-react";
 
 type SpeechRecognitionResultLike = {
@@ -34,6 +34,8 @@ export default function ReportPage() {
   const [language, setLanguage] = useState("English");
   const [description, setDescription] = useState("");
   const [listening, setListening] = useState(false);
+  const [photo, setPhoto] = useState<File | null>(null);
+  const photoInputRef = useRef<HTMLInputElement>(null);
   const [location, setLocation] = useState<{
     latitude: number;
     longitude: number;
@@ -146,6 +148,45 @@ export default function ReportPage() {
   providerMessage?: string;
 } | null>(null);
 
+  const handlePhotoChange = (
+    event: ChangeEvent<HTMLInputElement>
+  ) => {
+    const selectedFile = event.target.files?.[0] ?? null;
+
+    if (!selectedFile) {
+      return;
+    }
+
+    const allowedTypes = new Set([
+      "image/jpeg",
+      "image/png",
+      "image/webp",
+    ]);
+
+    if (!allowedTypes.has(selectedFile.type)) {
+      setSubmitError("Only JPEG, PNG, and WebP images are supported.");
+      event.target.value = "";
+      return;
+    }
+
+    if (selectedFile.size > 8 * 1024 * 1024) {
+      setSubmitError("Photo must be 8 MB or smaller.");
+      event.target.value = "";
+      return;
+    }
+
+    setSubmitError("");
+    setPhoto(selectedFile);
+  };
+
+  const handleRemovePhoto = () => {
+    setPhoto(null);
+
+    if (photoInputRef.current) {
+      photoInputRef.current.value = "";
+    }
+  };
+
   const handleSubmit = async () => {
     if (!description.trim()) return;
 
@@ -167,17 +208,20 @@ export default function ReportPage() {
         }
       }
 
+      const geminiFormData = new FormData();
+
+      geminiFormData.append("description", description);
+      geminiFormData.append("language", language);
+      geminiFormData.append("location", JSON.stringify(location));
+      geminiFormData.append("evidence", JSON.stringify(environmentalEvidence));
+
+      if (photo) {
+        geminiFormData.append("image", photo);
+      }
+
       const geminiResponse = await fetch("/api/gemini", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          description,
-          language,
-          location,
-          evidence: environmentalEvidence,
-        }),
+        body: geminiFormData,
       });
 
       const geminiData = await geminiResponse.json();
@@ -456,10 +500,39 @@ export default function ReportPage() {
                   {listening ? "Listening..." : "Report by voice"}
                 </button>
 
-                <button className="flex items-center justify-center gap-3 rounded-2xl border border-white/10 bg-white/[0.02] p-4 text-sm text-white/70 transition hover:bg-white/5">
-                  <Camera size={19} />
-                  Add photo
-                </button>
+                <div className="space-y-2">
+                  <input
+                    ref={photoInputRef}
+                    type="file"
+                    accept="image/jpeg,image/png,image/webp"
+                    onChange={handlePhotoChange}
+                    className="hidden"
+                  />
+
+                  <button
+                    type="button"
+                    onClick={() => photoInputRef.current?.click()}
+                    className="flex w-full items-center justify-center gap-3 rounded-2xl border border-white/10 bg-white/[0.02] p-4 text-sm text-white/70 transition hover:bg-white/5"
+                  >
+                    <Camera size={19} />
+                    {photo ? "Change photo" : "Add photo"}
+                  </button>
+
+                  {photo && (
+                    <div className="flex items-center justify-between gap-3 rounded-xl border border-emerald-400/10 bg-emerald-400/5 px-3 py-2">
+                      <span className="truncate text-xs text-white/60">
+                        {photo.name}
+                      </span>
+                      <button
+                        type="button"
+                        onClick={handleRemovePhoto}
+                        className="shrink-0 text-xs text-red-300 transition hover:text-red-200"
+                      >
+                        Remove
+                      </button>
+                    </div>
+                  )}
+                </div>
               </div>
 
               <div className="mb-7 grid gap-4 sm:grid-cols-2">
