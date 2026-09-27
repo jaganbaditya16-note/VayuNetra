@@ -182,7 +182,7 @@ export default function Home() {
   const [reports, setReports] = useState<Report[]>(demoReports);
   const [selectedId, setSelectedId] = useState<string>(demoHotspots[0]?.id);
   const [filter, setFilter] = useState("All");
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     Promise.all([
@@ -269,7 +269,7 @@ export default function Home() {
             <p className="mt-4 max-w-3xl text-sm leading-7 text-slate-400 sm:text-base">
               VayuNetra structures multilingual citizen observations with Gemini,
               combines them with satellite-derived indicators and available
-              public monitoring data, then exposes the evidence, confidence and
+              public-data context, then exposes the evidence, confidence and
               next action in one operational view.
             </p>
 
@@ -611,6 +611,66 @@ export default function Home() {
                 </div>
               ))}
             </div>
+          </div>
+        </section>
+
+
+        <section className="mt-5 rounded-2xl border border-cyan-400/10 bg-[radial-gradient(circle_at_90%_10%,rgba(34,211,238,0.08),transparent_32%),linear-gradient(135deg,rgba(255,255,255,0.025),rgba(255,255,255,0.015))] p-5 sm:p-6">
+          <div className="flex flex-col justify-between gap-3 sm:flex-row sm:items-end">
+            <div>
+              <p className="text-[10px] font-bold tracking-[0.18em] text-cyan-400">
+                BRICS EXPANSION
+              </p>
+              <h2 className="mt-1 text-lg font-semibold">
+                India today, reusable civic-intelligence architecture across BRICS
+              </h2>
+              <p className="mt-2 max-w-3xl text-[11px] leading-5 text-slate-500">
+                The core pipeline is country-neutral: citizen intake, Gemini
+                structuring, evidence fusion, geospatial prioritization and
+                human review. Country-specific adapters provide local geography
+                and authorized public datasets.
+              </p>
+            </div>
+            <Link
+              href="/sources"
+              className="shrink-0 text-xs font-semibold text-slate-400 hover:text-white"
+            >
+              View data methodology →
+            </Link>
+          </div>
+
+          <div className="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
+            {[
+              ["IN", "India", "IMPLEMENTED", "Core geography adapter is live."],
+              ["BR", "Brazil", "ADAPTER-READY", "Local adapter slot is defined; live datasets not connected."],
+              ["RU", "Russia", "ADAPTER-READY", "Local adapter slot is defined; live datasets not connected."],
+              ["CN", "China", "ADAPTER-READY", "Local adapter slot is defined; live datasets not connected."],
+              ["ZA", "South Africa", "ADAPTER-READY", "Local adapter slot is defined; live datasets not connected."],
+            ].map(([code, country, status, detail]) => (
+              <div
+                key={code}
+                className="rounded-xl border border-white/[0.06] bg-black/15 p-4"
+              >
+                <div className="flex items-center justify-between gap-3">
+                  <span className="text-lg font-black tracking-wide text-slate-100">
+                    {code}
+                  </span>
+                  <span
+                    className={
+                      status === "IMPLEMENTED"
+                        ? "rounded-full border border-emerald-400/15 bg-emerald-400/10 px-2 py-1 text-[8px] font-bold tracking-wider text-emerald-300"
+                        : "rounded-full border border-cyan-400/15 bg-cyan-400/10 px-2 py-1 text-[8px] font-bold tracking-wider text-cyan-300"
+                    }
+                  >
+                    {status}
+                  </span>
+                </div>
+                <h3 className="mt-3 text-sm font-semibold">{country}</h3>
+                <p className="mt-2 text-[10px] leading-5 text-slate-500">
+                  {detail}
+                </p>
+              </div>
+            ))}
           </div>
         </section>
 
