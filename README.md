@@ -84,6 +84,21 @@ Useful official source families include:
 - CPCB/public monitoring feeds for environmental ground evidence.
 - Census India / UDISE+ / MoSPI snapshots for verified state-level demographic, infrastructure and planning context.
 
+
+## BRICS expansion
+
+VayuNetra is **India-implemented today** and keeps country-specific concerns behind adapter contracts rather than hard-coding them into the AI and prioritization pipeline.
+
+| Country | Current state |
+| --- | --- |
+| India (IN) | **Implemented** — geography validation and the current public-data workflow are active. |
+| Brazil (BR) | **Adapter-ready** — country adapter slot is defined; no live Brazil dataset adapter is claimed. |
+| Russia (RU) | **Adapter-ready** — country adapter slot is defined; no live Russia dataset adapter is claimed. |
+| China (CN) | **Adapter-ready** — country adapter slot is defined; no live China dataset adapter is claimed. |
+| South Africa (ZA) | **Adapter-ready** — country adapter slot is defined; no live South Africa dataset adapter is claimed. |
+
+The reusable contract is the same across countries: citizen intake → Gemini structuring → evidence provenance → geospatial clustering → transparent priority scoring → human review. Each country can supply its own authorized administrative geography, demographic/infrastructure sources and public-investment datasets without changing that core pipeline.
+
 ## Safety and governance
 
 VayuNetra is a decision-support prototype, not an automated regulatory authority.
