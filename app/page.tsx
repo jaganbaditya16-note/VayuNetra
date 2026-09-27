@@ -178,11 +178,11 @@ function severityTone(severity: string) {
 }
 
 export default function Home() {
-  const [hotspots, setHotspots] = useState<Hotspot[]>([]);
-  const [reports, setReports] = useState<Report[]>([]);
-  const [selectedId, setSelectedId] = useState<string>();
+  const [hotspots, setHotspots] = useState<Hotspot[]>(demoHotspots);
+  const [reports, setReports] = useState<Report[]>(demoReports);
+  const [selectedId, setSelectedId] = useState<string>(demoHotspots[0]?.id);
   const [filter, setFilter] = useState("All");
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
 
   useEffect(() => {
     Promise.all([
