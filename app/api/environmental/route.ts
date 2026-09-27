@@ -24,7 +24,10 @@ function runEarthEngine(
       "earth_engine.py"
     );
 
-    const childProcess = spawn("py", [
+    const pythonCommand =
+      process.platform === "win32" ? "py" : "python3";
+
+    const childProcess = spawn(pythonCommand, [
       scriptPath,
       String(latitude),
       String(longitude),
@@ -87,11 +90,22 @@ export async function GET(request: Request) {
     const latitude = Number(searchParams.get("latitude"));
     const longitude = Number(searchParams.get("longitude"));
 
+    const requestedStartDate = searchParams.get("startDate");
+    const requestedEndDate = searchParams.get("endDate");
+
+    const endDateValue = new Date();
+    const startDateValue = new Date(
+      endDateValue.getTime() - 5 * 24 * 60 * 60 * 1000
+    );
+
+    const formatDate = (value: Date) =>
+      value.toISOString().slice(0, 10);
+
     const startDate =
-      searchParams.get("startDate") || "2026-09-20";
+      requestedStartDate || formatDate(startDateValue);
 
     const endDate =
-      searchParams.get("endDate") || "2026-09-25";
+      requestedEndDate || formatDate(endDateValue);
 
     if (
       !Number.isFinite(latitude) ||
