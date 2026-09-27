@@ -65,11 +65,15 @@ It combines:
 
 The score is deterministic and explainable. Gemini is responsible for understanding unstructured citizen input; the application logic makes the priority calculation explicit.
 
-### Demo-data policy
+### Data coverage and demo-data policy
 
-The current development-context file contains **illustrative prototype values** so the end-to-end experience can be demonstrated. They are not presented as official statistics.
+The original development-context fixtures remain **illustrative** and are excluded from authoritative scoring. In addition, VayuNetra now ships a provenance-tracked **Maharashtra state snapshot** built from official sources:
 
-For operational deployment, these values should be replaced with verified public datasets and live planning feeds. The UI and API expose this distinction instead of disguising sample data as real measurements.
+- Census 2011 population baseline.
+- UDISE+ 2024-25 school-infrastructure indicators.
+- MoSPI PAIMANA March 2026 project-monitoring data.
+
+These snapshots are cached and marked stale because they are not real-time local feeds. The priority engine applies a 70% contextual freshness discount and labels the resulting context as mixed. It does not claim ward-level accuracy from state-level data.
 
 Useful official source families include:
 
@@ -78,6 +82,7 @@ Useful official source families include:
 - MoSPI Infrastructure Statistics for infrastructure indicators.
 - PM GatiShakti for integrated infrastructure-project and GIS planning context.
 - CPCB/public monitoring feeds for environmental ground evidence.
+- Census India / UDISE+ / MoSPI snapshots for verified state-level demographic, infrastructure and planning context.
 
 ## Safety and governance
 
@@ -156,9 +161,9 @@ can influence scoring.
 
 ## Public-data provenance and current availability
 
-The provider-neutral public-data catalog is available at `/api/public-data`. Each dataset reports publisher, URL, retrieval/measurement date, geography, freshness, verification, and delivery mode where a source is connected. Missing sources return `value: null` and `verification: unavailable`; illustrative prototype locations are labelled `illustrative` and never enter priority scoring.
+The provider-neutral public-data catalog is available at `/api/public-data`. Each dataset reports publisher, URL, retrieval/measurement date, geography, freshness, verification, and delivery mode. The catalog now exposes verified cached Maharashtra snapshots for Census 2011 population, UDISE+ 2024-25 school infrastructure, and MoSPI March 2026 project monitoring. CPCB ground monitoring and PM GatiShakti operational layers remain unavailable as live machine-ingested feeds.
 
-The implemented environmental adapter is Google Earth Engine over ESA Copernicus Sentinel-5P TROPOMI NO₂. The result is a satellite column estimate, not AQI or a ground measurement. The API records retrieval time, measurement window, geographic level, source URL, freshness, and live/cache delivery. CPCB ground monitoring, Census/demographics, UDISE+, MoSPI infrastructure, and PM GatiShakti investment/planning feeds are unavailable in this build. No statistics are invented for these gaps.
+The implemented environmental adapter is Google Earth Engine over ESA Copernicus Sentinel-5P TROPOMI NO₂. The result is a satellite column estimate, not AQI or a ground measurement. The API records retrieval time, measurement window, geographic level, source URL, freshness, and live/cache delivery. No live feed is implied where a source is only a cached snapshot.
 
 See [API documentation](docs/API.md) for request/authorization boundaries, [data provenance policy](docs/DATA_PROVENANCE.md) for dataset status and priority-input rules, and [deployment guidance](docs/DEPLOYMENT.md) for the zero-cost-first Cloud Run path.
 
@@ -182,8 +187,9 @@ Report/Gemini bodies have explicit byte limits, and provider calls have bounded 
 
 - **Implemented:** privacy-safe server projections, server-side Gemini/fallback classification, integrity signatures, Supabase persistence/RLS, Earth Engine Sentinel-5P adapter, explainable priority calculation, human-review API/schema, and India geography validation.
 - **Illustrative:** the existing `data/development-context.json` prototype location/context fixture. It is labelled illustrative and excluded from authoritative priority scores.
-- **Unavailable:** fresh machine-ingested CPCB station data, live Census/UDISE+/PM GatiShakti operational feeds, WhatsApp/SMS provider transport, and other BRICS geography adapters. An official-source registry and one verified-but-stale MoSPI planning snapshot are included for provenance; the stale snapshot does not affect scoring.
-- **Future integration:** connect licensed datasets through provenance-validating adapters and only then permit verified fresh values into priority scoring.
+- **Implemented:** verified cached Maharashtra Census/UDISE+/MoSPI context is provenance-tracked and contributes to scoring with a freshness discount; the original illustrative fixture remains excluded.
+- **Unavailable:** live CPCB station data, live Census/UDISE+ APIs, PM GatiShakti operational layers, WhatsApp/SMS provider transport, and live BRICS country adapters.
+- **Future integration:** connect licensed/live feeds and approved messaging providers through provider-specific adapters; verified fresh data can then replace the cached state snapshots without changing the scoring contract.
 
 ## Competition positioning
 
