@@ -52,21 +52,6 @@ function readingSeverity(
   return aqiToSeverity(reading.aqi);
 }
 
-function hasValidLocation(
-  report: CitizenReport
-): report is CitizenReport & {
-  latitude: number;
-  longitude: number;
-} {
-  return (
-    typeof report.latitude === "number" &&
-    typeof report.longitude === "number" &&
-    Number.isFinite(report.latitude) &&
-    Number.isFinite(report.longitude) &&
-    !(report.latitude === 0 && report.longitude === 0)
-  );
-}
-
 export function fuseEvidence(input: FusionInput): Hotspot {
   const {
     location,
@@ -74,10 +59,10 @@ export function fuseEvidence(input: FusionInput): Hotspot {
     satelliteReading,
   } = input;
 
-  const citizenReports = input.citizenReports.filter(hasValidLocation);
+  const citizenReports = input.citizenReports;
 
   const hasGovernment = !!governmentReading;
-  const hasSatellite = !!satelliteReading;
+  const hasSatellite = Boolean(satelliteReading && typeof satelliteReading.indicatorValue === "number" && Number.isFinite(satelliteReading.indicatorValue));
   const reportCount = citizenReports.length;
 
   const citizenWeight =
@@ -150,6 +135,13 @@ export function fuseEvidence(input: FusionInput): Hotspot {
         .filter(Boolean)
     )
   );
+  const activeStatuses = citizenReports.map((report) => report.status ?? "reported");
+  const status = activeStatuses.length > 0 && activeStatuses.every((value) => value === "resolved")
+    ? "resolved"
+    : activeStatuses.includes("action_needed") ? "action_needed"
+      : activeStatuses.length > 0 && activeStatuses.every((value) => value === "verified") ? "verified"
+        : activeStatuses.some((value) => value === "under_review") ? "under_review"
+          : "reported";
 
   return {
     location,
@@ -159,15 +151,16 @@ export function fuseEvidence(input: FusionInput): Hotspot {
     isSample: false,
     possibleContributors,
     evidenceBasis,
-    satelliteEvidence: satelliteReading ? {
+    satelliteEvidence: satelliteReading && hasSatellite ? {
       indicator: satelliteReading.category ?? "tropospheric_NO2_column_number_density",
       value: satelliteReading.indicatorValue ?? null,
       unit: "mol/m²",
       source: satelliteReading.source,
       measuredAt: satelliteReading.measuredAt,
+      provenance: satelliteReading.provenance,
     } : undefined,
     reportCount,
-    status: "reported",
+    status,
   };
 }
 

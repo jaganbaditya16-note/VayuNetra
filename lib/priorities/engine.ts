@@ -1,4 +1,4 @@
-import type { DevelopmentContext, DevelopmentPriority, PriorityInput } from "./types";
+import type { DevelopmentContext, DevelopmentPriority, PriorityInput } from "./types.ts";
 
 const CONTRIBUTOR_PROJECTS: Array<[string, string]> = [
   ["construction/dust", "Deploy dust-control and neighbourhood air-quality monitoring."],
@@ -14,10 +14,21 @@ function clamp(value: number) {
 }
 
 function nearestContext(input: PriorityInput, contexts: DevelopmentContext[]) {
+  const isTrustworthyContext = (context: DevelopmentContext) => context.contextStatus === "verified" &&
+    context.freshness === "fresh" && Boolean(context.measuredAt) && Boolean(context.sourceUrl?.startsWith("https://")) && context.sources.length > 0;
+  const countryCode = input.location.geography?.countryCode;
+  const requestedIds = new Set((input.location.geography?.levels ?? [])
+    .filter((level) => level.identifier)
+    .map((level) => `${level.level}:${level.identifier}`));
+  const geographicMatch = contexts.find((context) => isTrustworthyContext(context) &&
+    context.geography?.countryCode === countryCode && context.geography?.levels.some((level) =>
+      level.identifier && requestedIds.has(`${level.level}:${level.identifier}`)));
+  if (geographicMatch) return geographicMatch;
+  if (input.location.latitude === null || input.location.longitude === null) return undefined;
   let best: DevelopmentContext | undefined;
   let bestDistance = Number.POSITIVE_INFINITY;
 
-  for (const context of contexts) {
+  for (const context of contexts.filter((item) => isTrustworthyContext(item) && (!countryCode || item.geography?.countryCode === countryCode))) {
     const dLat = input.location.latitude - context.latitude;
     const dLon = input.location.longitude - context.longitude;
     const distance = dLat * dLat + dLon * dLon;
@@ -45,7 +56,10 @@ export function buildDevelopmentPriority(
   input: PriorityInput,
   contexts: DevelopmentContext[],
 ): DevelopmentPriority {
-  const context = input.context ?? nearestContext(input, contexts);
+  const requestedContext = input.context;
+  const context = requestedContext?.contextStatus === "verified" && requestedContext.freshness === "fresh" && requestedContext.measuredAt && requestedContext.sourceUrl?.startsWith("https://") && requestedContext.sources.length
+    ? requestedContext
+    : nearestContext(input, contexts);
 
   const demandSignal = clamp(
     Math.min(input.reportCount / 10, 1) * 0.7 +
@@ -53,24 +67,22 @@ export function buildDevelopmentPriority(
   );
 
   const evidenceStrength = clamp(input.confidence);
-  const infrastructureGap = context?.infrastructureGap ?? 0.5;
-  const populationExposure = context?.populationExposure ?? 0.5;
-  const investmentAlignment = context?.investmentAlignment ?? 0.5;
-  const inclusionNeed = context?.inclusionNeed ?? 0.5;
+  const infrastructureGap = context?.infrastructureGap ?? 0;
+  const populationExposure = context?.populationExposure ?? 0;
+  const investmentAlignment = context?.investmentAlignment ?? 0;
+  const inclusionNeed = context?.inclusionNeed ?? 0;
 
   // The score is deliberately transparent: AI structures the demand; this
   // deterministic layer prevents an LLM from silently inventing a priority.
-  const priorityScore = Math.round(
-    100 *
-      clamp(
-        demandSignal * 0.25 +
-          evidenceStrength * 0.25 +
-          infrastructureGap * 0.2 +
-          populationExposure * 0.15 +
-          investmentAlignment * 0.1 +
-          inclusionNeed * 0.05,
-      ),
-  );
+  const demandWeight = context ? 0.25 : 0.5;
+  const evidenceWeight = context ? 0.25 : 0.5;
+  const priorityScore = Math.round(100 * clamp(
+    demandSignal * demandWeight + evidenceStrength * evidenceWeight +
+    infrastructureGap * (context ? 0.2 : 0) +
+    populationExposure * (context ? 0.15 : 0) +
+    investmentAlignment * (context ? 0.1 : 0) +
+    inclusionNeed * (context ? 0.05 : 0),
+  ));
 
   const priorityBand =
     priorityScore >= 80
@@ -84,9 +96,11 @@ export function buildDevelopmentPriority(
   const rationale = [
     `${input.reportCount} located citizen report${input.reportCount === 1 ? "" : "s"} currently support this demand cluster.`,
     `Evidence strength is ${Math.round(evidenceStrength * 100)}% from the current evidence pipeline.`,
-    `Infrastructure-gap signal is ${Math.round(infrastructureGap * 100)}% in the available context layer.`,
-    `Population-exposure signal is ${Math.round(populationExposure * 100)}% in the available context layer.`,
-    `Investment-alignment signal is ${Math.round(investmentAlignment * 100)}% against the available planning context.`,
+    context ? `Infrastructure-gap signal is ${Math.round(infrastructureGap * 100)}% from verified context.` : "Infrastructure, demographic, and planning context are unavailable and do not affect this score.",
+    ...(context ? [
+      `Population-exposure signal is ${Math.round(populationExposure * 100)}% from verified context.`,
+      `Investment-alignment signal is ${Math.round(investmentAlignment * 100)}% against verified planning context.`,
+    ] : []),
   ];
 
   const evidenceBasis = [
@@ -108,7 +122,7 @@ export function buildDevelopmentPriority(
     recommendedProject: projectFor(input.contributors),
     rationale,
     evidenceBasis,
-    dataQuality: context?.contextStatus === "verified" ? "verified" : "illustrative",
+    dataQuality: context?.contextStatus === "verified" ? "verified" : "unavailable",
     contextSources: context?.sources ?? [],
   };
 }

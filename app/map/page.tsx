@@ -22,7 +22,7 @@ type SatelliteEvidence = {
 
 type RawHotspot = {
   id?: string | number;
-  location?: { city?: string; area?: string; latitude?: number; longitude?: number };
+  location?: { city?: string; area?: string; latitude?: number | null; longitude?: number | null };
   severity?: string;
   confidence?: number;
   reportCount?: number;
@@ -35,8 +35,8 @@ type NormalizedHotspot = {
   id: string;
   city: string;
   area: string;
-  latitude: number;
-  longitude: number;
+  latitude: number | null;
+  longitude: number | null;
   severity: string;
   confidence: number;
   reports: number;
@@ -50,8 +50,8 @@ function normalize(spot: RawHotspot, index: number): NormalizedHotspot {
     id: String(spot?.id ?? `api-${index}`),
     city: String(spot?.location?.city ?? "Reported area"),
     area: String(spot?.location?.area ?? "Citizen hotspot"),
-    latitude: Number(spot?.location?.latitude ?? 20),
-    longitude: Number(spot?.location?.longitude ?? 78),
+    latitude: typeof spot?.location?.latitude === "number" && Number.isFinite(spot.location.latitude) ? spot.location.latitude : null,
+    longitude: typeof spot?.location?.longitude === "number" && Number.isFinite(spot.location.longitude) ? spot.location.longitude : null,
     severity: String(spot?.severity ?? "moderate").replace(
       /^./,
       (value: string) => value.toUpperCase(),
@@ -183,7 +183,7 @@ export default function MapPage() {
         <div className="grid gap-5 xl:grid-cols-[minmax(0,1.8fr)_390px]">
           <div className="overflow-hidden rounded-2xl border border-white/[0.08] bg-[#07101d] p-1">
             <VayuMap
-              hotspots={visible}
+              hotspots={visible.filter((item): item is NormalizedHotspot & { latitude: number; longitude: number } => item.latitude !== null && item.longitude !== null)}
               selectedId={selected?.id}
               onSelect={(item) => setSelectedId(item.id)}
               className="h-[620px] lg:h-[720px]"

@@ -1,3 +1,6 @@
+import type { GeographicHierarchy } from "@/lib/geography/types";
+import type { PublicDataset } from "../public-data/provenance.ts";
+
 export type EnvironmentalReading = {
   id: string;
   city: string;
@@ -12,20 +15,73 @@ export type EnvironmentalReading = {
   source: string;
   sourceType: "government" | "satellite" | "citizen" | "derived";
   measuredAt: string | null;
+  provenance?: PublicDataset["provenance"];
 };
+
 export type EnvironmentalSource =
   | "government"
   | "satellite"
   | "citizen"
   | "derived";
 
-export type Severity = "low" | "moderate" | "high" | "critical";
+export type Severity =
+  | "low"
+  | "moderate"
+  | "high"
+  | "critical";
+
+/**
+ * Civic request categories supported by VayuNetra.
+ *
+ * The environmental categories are retained for backward compatibility
+ * with existing reports and evidence pipelines.
+ */
+export type CivicCategory =
+  // Existing environmental categories
+  | "industrial"
+  | "vehicular"
+  | "burning"
+  | "dust"
+  | "air_pollution"
+  | "water_pollution"
+  | "waste"
+  | "noise"
+
+  // Broader civic-development categories
+  | "roads"
+  | "mobility"
+  | "public_transport"
+  | "water_supply"
+  | "drainage_flooding"
+  | "waste_sanitation"
+  | "education"
+  | "healthcare"
+  | "connectivity"
+  | "electricity"
+  | "public_spaces"
+  | "community_facilities"
+
+  | "other";
+
+export type CivicDomain =
+  | "environment"
+  | "infrastructure"
+  | "mobility"
+  | "utilities"
+  | "sanitation"
+  | "education"
+  | "health"
+  | "connectivity"
+  | "public_spaces"
+  | "community"
+  | "other";
 
 export type CitizenReport = {
   id: string;
   latitude: number | null;
   longitude: number | null;
-  category: string;
+  category: CivicCategory;
+  domain?: CivicDomain;
   severity: Severity;
   summary: string;
   reportedAt: string;
@@ -35,15 +91,17 @@ export type CitizenReport = {
   recommendedAction?: string;
   confidence?: number | null;
   evidence?: Record<string, unknown>;
+  geography?: GeographicHierarchy | null;
+  status?: string;
 };
-
 
 export type FusionInput = {
   location: {
     city: string;
     area: string;
-    latitude: number;
-    longitude: number;
+    latitude: number | null;
+    longitude: number | null;
+    geography?: GeographicHierarchy | null;
   };
   governmentReading?: EnvironmentalReading;
   satelliteReading?: EnvironmentalReading;
@@ -64,8 +122,40 @@ export type Hotspot = {
     unit: string;
     source: string;
     measuredAt: string | null;
+    provenance?: PublicDataset["provenance"];
   };
   reportCount: number;
-  status: "reported" | "verified" | "action-needed" | "resolved";
+  status: "reported" | "under_review" | "verified" | "action_needed" | "resolved" | "rejected";
   recommendedAction?: string;
 };
+
+export function isCivicCategory(
+  value: unknown
+): value is CivicCategory {
+  return (
+    typeof value === "string" &&
+    [
+      "industrial",
+      "vehicular",
+      "burning",
+      "dust",
+      "air_pollution",
+      "water_pollution",
+      "waste",
+      "noise",
+      "roads",
+      "mobility",
+      "public_transport",
+      "water_supply",
+      "drainage_flooding",
+      "waste_sanitation",
+      "education",
+      "healthcare",
+      "connectivity",
+      "electricity",
+      "public_spaces",
+      "community_facilities",
+      "other",
+    ].includes(value)
+  );
+}

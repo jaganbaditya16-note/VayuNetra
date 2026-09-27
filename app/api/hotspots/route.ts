@@ -7,8 +7,31 @@ import type {
   CitizenReport,
   EnvironmentalReading,
 } from "@/lib/environmental/types";
+import { coarseCoordinate } from "@/lib/reports/public";
+import { isPriorityEligibleReport } from "@/lib/reports/analysis";
+import {
+  getIntegrityConfigurationError,
+  getReportsPersistenceConfiguration,
+} from "@/lib/reports/persistence-config";
 
 const CLUSTER_RADIUS_KM = 2;
+const EARTH_ENGINE_TIMEOUT_MS = 12_000;
+const EARTH_ENGINE_CACHE_TTL_MS = 15 * 60 * 1000;
+const EARTH_ENGINE_MAX_OUTPUT_BYTES = 256 * 1024;
+const EARTH_ENGINE_MAX_ERROR_BYTES = 32 * 1024;
+const SATELLITE_CONCURRENCY = 2;
+
+type SatelliteCacheEntry = {
+  value: EnvironmentalReading | undefined;
+  expiresAt: number;
+};
+
+const satelliteCache = new Map<string, SatelliteCacheEntry>();
+
+const inFlightSatelliteRequests = new Map<
+  string,
+  Promise<EnvironmentalReading | undefined>
+>();
 
 function hasValidLocation(
   report: CitizenReport
@@ -48,62 +71,59 @@ function distanceKm(
   );
 }
 
-function clusterReports(
-  reports: Array<
-    CitizenReport & {
-      latitude: number;
-      longitude: number;
-    }
-  >
-) {
-  const clusters: Array<
-    Array<
-      CitizenReport & {
-        latitude: number;
-        longitude: number;
-      }
-    >
-  > = [];
-
+function clusterReports(reports: CitizenReport[]) {
+  const clusters: CitizenReport[][] = [];
   for (const report of reports) {
-    let matchingCluster:
-      | Array<
-          CitizenReport & {
-            latitude: number;
-            longitude: number;
-          }
-        >
-      | undefined;
-
-    for (const cluster of clusters) {
+    const matchingCluster = clusters.find((cluster) => {
       const reference = cluster[0];
-
-      if (
-        distanceKm(
-          reference.latitude,
-          reference.longitude,
-          report.latitude,
-          report.longitude
-        ) <= CLUSTER_RADIUS_KM
-      ) {
-        matchingCluster = cluster;
-        break;
+      if (hasValidLocation(reference) && hasValidLocation(report)) {
+        return distanceKm(reference.latitude, reference.longitude, report.latitude, report.longitude) <= CLUSTER_RADIUS_KM;
       }
-    }
-
-    if (matchingCluster) {
-      matchingCluster.push(report);
-    } else {
-      clusters.push([report]);
-    }
+      const key = hierarchyKey(report);
+      return !hasValidLocation(reference) && key !== null && key === hierarchyKey(reference);
+    });
+    if (matchingCluster) matchingCluster.push(report);
+    else clusters.push([report]);
   }
-
   return clusters;
 }
 
-function getSatelliteReading(
+function boundedAppend(
+  current: string,
+  chunk: Buffer,
+  maxBytes: number
+) {
+  if (Buffer.byteLength(current) >= maxBytes) {
+    return current;
+  }
+
+  const remaining = maxBytes - Buffer.byteLength(current);
+
+  return (
+    current +
+    chunk.toString("utf8").slice(0, remaining)
+  );
+}
+
+function satelliteCacheKey(
   latitude: number,
-  longitude: number
+  longitude: number,
+  startDate: string,
+  endDate: string
+) {
+  return [
+    latitude.toFixed(4),
+    longitude.toFixed(4),
+    startDate,
+    endDate,
+  ].join(":");
+}
+
+function runEarthEngine(
+  latitude: number,
+  longitude: number,
+  startDate: string,
+  endDate: string
 ): Promise<EnvironmentalReading | undefined> {
   return new Promise((resolve) => {
     const scriptPath = path.join(
@@ -112,34 +132,93 @@ function getSatelliteReading(
       "earth_engine.py"
     );
 
-    const pythonCommand = process.platform === "win32" ? "py" : "python3";
-    const endDate = new Date();
-    const startDate = new Date(endDate.getTime() - 5 * 24 * 60 * 60 * 1000);
-    const formatDate = (value: Date) => value.toISOString().slice(0, 10);
+    const pythonCommand =
+      process.platform === "win32"
+        ? "py"
+        : "python3";
 
-    const childProcess = spawn(pythonCommand, [
-      scriptPath,
-      String(latitude),
-      String(longitude),
-      formatDate(startDate),
-      formatDate(endDate),
-    ]);
+    const childProcess = spawn(
+      pythonCommand,
+      [
+        scriptPath,
+        String(latitude),
+        String(longitude),
+        startDate,
+        endDate,
+      ],
+      {
+        windowsHide: true,
+      }
+    );
 
     let stdout = "";
     let stderr = "";
+    let settled = false;
 
-    childProcess.stdout.on("data", (data) => {
-      stdout += data.toString();
+    const timeout = setTimeout(() => {
+      if (settled) {
+        return;
+      }
+
+      settled = true;
+      childProcess.kill();
+
+      console.error(
+        "Earth Engine hotspot request timed out."
+      );
+
+      resolve(undefined);
+    }, EARTH_ENGINE_TIMEOUT_MS);
+
+    const finish = (
+      value: EnvironmentalReading | undefined
+    ) => {
+      if (settled) {
+        return;
+      }
+
+      settled = true;
+      clearTimeout(timeout);
+      resolve(value);
+    };
+
+    childProcess.stdout.on("data", (data: Buffer) => {
+      stdout = boundedAppend(
+        stdout,
+        data,
+        EARTH_ENGINE_MAX_OUTPUT_BYTES
+      );
     });
 
-    childProcess.stderr.on("data", (data) => {
-      stderr += data.toString();
+    childProcess.stderr.on("data", (data: Buffer) => {
+      stderr = boundedAppend(
+        stderr,
+        data,
+        EARTH_ENGINE_MAX_ERROR_BYTES
+      );
+    });
+
+    childProcess.on("error", (error) => {
+      console.error(
+        "Earth Engine process error:",
+        error
+      );
+
+      finish(undefined);
     });
 
     childProcess.on("close", (code) => {
+      if (settled) {
+        return;
+      }
+
       if (code !== 0) {
-        console.error("Earth Engine failed:", stderr);
-        resolve(undefined);
+        console.error(
+          "Earth Engine hotspot process failed:",
+          stderr.slice(0, 500)
+        );
+
+        finish(undefined);
         return;
       }
 
@@ -149,15 +228,29 @@ function getSatelliteReading(
           .split(/\r?\n/)
           .filter(Boolean);
 
-        const result = JSON.parse(lines[lines.length - 1]);
+        const jsonLine = lines.at(-1);
 
-        if (result.error) {
-          console.error("Earth Engine error:", result.error);
-          resolve(undefined);
+        if (!jsonLine) {
+          finish(undefined);
           return;
         }
 
-        resolve({
+        const result = JSON.parse(jsonLine) as {
+          value?: unknown;
+          source?: unknown;
+          measuredAt?: unknown;
+          error?: unknown;
+        };
+
+        if (result.error) {
+          finish(undefined);
+          return;
+        }
+
+        const measuredAt = typeof result.measuredAt === "string" ? result.measuredAt : new Date().toISOString();
+        const measuredEnd = measuredAt.split(" to ").at(-1) ?? measuredAt;
+        const age = Date.now() - new Date(`${measuredEnd}T23:59:59Z`).getTime();
+        finish({
           id: `satellite-${latitude}-${longitude}`,
           city: "Satellite analysis area",
           area: "Environmental observation area",
@@ -171,25 +264,170 @@ function getSatelliteReading(
             typeof result.value === "number"
               ? result.value
               : null,
-          source: result.source,
+          source:
+            typeof result.source === "string"
+              ? result.source
+              : "Earth Engine",
           sourceType: "satellite",
-          measuredAt: result.measuredAt,
+          measuredAt,
+          provenance: {
+            publisher: "European Space Agency Copernicus / Google Earth Engine",
+            sourceUrl: "https://developers.google.com/earth-engine/datasets/catalog/COPERNICUS_S5P_NRTI_L3_NO2",
+            retrievedAt: new Date().toISOString(),
+            measuredAt,
+            geographicLevel: "point_buffer_10km",
+            geographyId: null,
+            geographyName: null,
+            freshness: Number.isFinite(age) && age <= 30 * 24 * 60 * 60 * 1000 ? "fresh" : "stale",
+            verification: "verified",
+            delivery: "live",
+          },
         });
       } catch (error) {
         console.error(
-          "Could not parse Earth Engine result:",
+          "Could not parse Earth Engine hotspot result:",
           error
         );
-        resolve(undefined);
+
+        finish(undefined);
       }
     });
   });
 }
 
+async function getSatelliteReading(
+  latitude: number,
+  longitude: number
+): Promise<EnvironmentalReading | undefined> {
+  const endDate = new Date();
+  const startDate = new Date(
+    endDate.getTime() - 5 * 24 * 60 * 60 * 1000
+  );
+
+  const formatDate = (value: Date) =>
+    value.toISOString().slice(0, 10);
+
+  const startDateString = formatDate(startDate);
+  const endDateString = formatDate(endDate);
+
+  const key = satelliteCacheKey(
+    latitude,
+    longitude,
+    startDateString,
+    endDateString
+  );
+
+  const now = Date.now();
+  const cached = satelliteCache.get(key);
+
+  if (cached && cached.expiresAt > now) {
+    return cached.value ? { ...cached.value, provenance: cached.value.provenance ? { ...cached.value.provenance, delivery: "cached" } : undefined } : undefined;
+  }
+
+  const existingRequest =
+    inFlightSatelliteRequests.get(key);
+
+  if (existingRequest) {
+    return existingRequest;
+  }
+
+  const request = runEarthEngine(
+    latitude,
+    longitude,
+    startDateString,
+    endDateString
+  )
+    .then((value) => {
+      satelliteCache.set(key, {
+        value,
+        expiresAt:
+          Date.now() + EARTH_ENGINE_CACHE_TTL_MS,
+      });
+
+      return value;
+    })
+    .finally(() => {
+      inFlightSatelliteRequests.delete(key);
+    });
+
+  inFlightSatelliteRequests.set(key, request);
+
+  return request;
+}
+
+async function mapWithConcurrency<T, R>(
+  items: T[],
+  concurrency: number,
+  worker: (item: T, index: number) => Promise<R>
+): Promise<R[]> {
+  const results = new Array<R>(items.length);
+  let nextIndex = 0;
+
+  async function runWorker() {
+    while (true) {
+      const index = nextIndex++;
+
+      if (index >= items.length) {
+        return;
+      }
+
+      results[index] = await worker(
+        items[index],
+        index
+      );
+    }
+  }
+
+  const workerCount = Math.min(
+    Math.max(1, concurrency),
+    items.length
+  );
+
+  await Promise.all(
+    Array.from(
+      { length: workerCount },
+      () => runWorker()
+    )
+  );
+
+  return results;
+}
+
 export async function GET() {
   try {
-    const reports = await getReports();
-    const locatedReports = reports.filter(hasValidLocation);
+    const integrityError =
+      getIntegrityConfigurationError();
+
+    if (integrityError) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: integrityError,
+          hotspots: [],
+        },
+        { status: 503 }
+      );
+    }
+
+    const persistence =
+      getReportsPersistenceConfiguration();
+
+    if (persistence.mode === "error") {
+      return NextResponse.json(
+        {
+          success: false,
+          error: persistence.error,
+          hotspots: [],
+        },
+        { status: 503 }
+      );
+    }
+
+    const reports = (
+      await getReports()
+    ).filter(isPriorityEligibleReport).filter((report) => !["resolved", "rejected"].includes(report.status ?? "reported"));
+
+    const locatedReports = reports.filter(hasUsableGeography);
 
     if (locatedReports.length === 0) {
       return NextResponse.json({
@@ -197,60 +435,106 @@ export async function GET() {
         count: 0,
         hotspots: [],
         demo: false,
-        message: "No citizen reports with valid location data yet.",
+        message:
+          "No citizen reports with coordinates or administrative geography yet.",
       });
     }
 
-    const clusters = clusterReports(locatedReports);
+    const clusters =
+      clusterReports(locatedReports);
 
-    const hotspots = await Promise.all(
-      clusters.map(async (cluster, index) => {
-        const latitude =
-          cluster.reduce(
-            (sum, report) => sum + report.latitude,
-            0
-          ) / cluster.length;
-
-        const longitude =
-          cluster.reduce(
-            (sum, report) => sum + report.longitude,
-            0
-          ) / cluster.length;
-
-        const satelliteReading = await getSatelliteReading(
-          latitude,
-          longitude
-        );
+    const hotspots = await mapWithConcurrency(
+      clusters,
+      SATELLITE_CONCURRENCY,
+      async (cluster, index) => {
+        const coordinateReports = cluster.filter(hasValidLocation);
+        const latitude = coordinateReports.length
+          ? coordinateReports.reduce((sum, report) => sum + report.latitude, 0) / coordinateReports.length
+          : null;
+        const longitude = coordinateReports.length
+          ? coordinateReports.reduce((sum, report) => sum + report.longitude, 0) / coordinateReports.length
+          : null;
+        const satelliteReading = latitude !== null && longitude !== null
+          ? await getSatelliteReading(latitude, longitude)
+          : undefined;
+        const hasGeography = Boolean(cluster[0].geography);
 
         return fuseEvidence({
           location: {
-            city: `Reported area ${index + 1}`,
-            area: `Citizen hotspot ${index + 1}`,
+            city: hasGeography ? "Reported administrative geography" : `Reported area ${index + 1}`,
+            area: hasGeography ? "Citizen-reported administrative area" : `Citizen hotspot ${index + 1}`,
             latitude,
             longitude,
+            geography: cluster[0].geography ?? null,
           },
           satelliteReading,
           citizenReports: cluster,
         });
-      })
+      }
     );
 
     return NextResponse.json({
       success: true,
       count: hotspots.length,
-      hotspots: rankHotspots(hotspots),
+      hotspots: rankHotspots(hotspots).map(
+        (hotspot) => ({
+          ...hotspot,
+          location: {
+            city: hotspot.location.city,
+            area: hotspot.location.area,
+            latitude:
+              coarseCoordinate(
+                hotspot.location.latitude
+              ),
+            longitude:
+              coarseCoordinate(
+                hotspot.location.longitude
+              ),
+          },
+          satelliteEvidence:
+            hotspot.satelliteEvidence
+              ? {
+                  indicator:
+                    hotspot.satelliteEvidence
+                      .indicator,
+                  value:
+                    hotspot.satelliteEvidence.value,
+                  unit:
+                    hotspot.satelliteEvidence.unit,
+                  source: hotspot.satelliteEvidence.source,
+                  measuredAt: hotspot.satelliteEvidence.measuredAt,
+                  provenance: hotspot.satelliteEvidence.provenance,
+                }
+              : undefined,
+        })
+      ),
       demo: false,
-    });
+    }, { headers: { "Cache-Control": "public, max-age=15, s-maxage=30, stale-while-revalidate=30" } });
   } catch (error) {
-    console.error("Hotspot clustering failed:", error);
+    console.error(
+      "Hotspot clustering failed:",
+      error
+    );
 
     return NextResponse.json(
       {
         success: false,
         hotspots: [],
-        error: "Hotspot processing temporarily unavailable",
+        error:
+          "Hotspot processing temporarily unavailable",
       },
-      { status: 200 }
+      { status: 503 }
     );
   }
+}
+
+function hierarchyKey(report: CitizenReport): string | null {
+  const geography = report.geography;
+  if (!geography || !Array.isArray(geography.levels)) return null;
+  const level = [...geography.levels].reverse().find((item) => item.identifier || item.name);
+  return level ? `${geography.countryCode}:${level.level}:${level.identifier ?? level.name}` : null;
+}
+
+function hasUsableGeography(report: CitizenReport): boolean {
+  return hasValidLocation(report) || hierarchyKey(report) !== null;
 }

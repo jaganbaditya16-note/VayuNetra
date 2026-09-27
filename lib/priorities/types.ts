@@ -1,3 +1,5 @@
+import type { GeographicHierarchy } from "../geography/types.ts";
+
 export type DevelopmentContext = {
   id: string;
   name: string;
@@ -13,14 +15,21 @@ export type DevelopmentContext = {
   plannedPrograms: string[];
   contextStatus: "illustrative" | "verified";
   sources: string[];
+  geography?: GeographicHierarchy | null;
+  sourceUrl?: string | null;
+  measuredAt?: string | null;
+  geographyId?: string | null;
+  geographicLevel?: string | null;
+  freshness?: "fresh" | "stale" | "unavailable";
 };
 
 export type PriorityInput = {
   location: {
     city: string;
     area: string;
-    latitude: number;
-    longitude: number;
+    latitude: number | null;
+    longitude: number | null;
+    geography?: GeographicHierarchy | null;
   };
   reportCount: number;
   confidence: number;
@@ -44,6 +53,6 @@ export type DevelopmentPriority = {
   recommendedProject: string;
   rationale: string[];
   evidenceBasis: string[];
-  dataQuality: "illustrative" | "mixed" | "verified";
+  dataQuality: "illustrative" | "mixed" | "verified" | "unavailable";
   contextSources: string[];
 };

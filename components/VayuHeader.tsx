@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
@@ -84,6 +84,12 @@ export default function VayuHeader() {
           >
             Sources
           </Link>
+          <Link
+            href="/operator"
+            className="rounded-xl px-3.5 py-2.5 text-xs font-semibold text-slate-500 transition hover:bg-white/[0.04] hover:text-slate-200"
+          >
+            Reviewer
+          </Link>
         </nav>
 
         <div className="flex items-center gap-2">
@@ -141,6 +147,13 @@ export default function VayuHeader() {
               className="flex items-center gap-3 rounded-xl px-3 py-3 text-sm text-slate-300 hover:bg-white/5"
             >
               Sources & methodology
+            </Link>
+            <Link
+              href="/operator"
+              onClick={() => setMobileOpen(false)}
+              className="flex items-center gap-3 rounded-xl px-3 py-3 text-sm text-slate-300 hover:bg-white/5"
+            >
+              Reviewer console
             </Link>
           </div>
         </div>

@@ -23,7 +23,7 @@ const sources = [
     title: "CPCB / Government Open Data",
     icon: Database,
     description:
-      "Public air-quality monitoring data can provide ground-based evidence where an official monitoring station is available. CPCB integration is designed as a separate data adapter.",
+            "Unavailable in this build: no verified CPCB live-feed adapter is configured. Ground measurements do not currently enter VayuNetra scoring.",
   },
   {
     title: "Citizen Reports",
@@ -41,25 +41,25 @@ const sources = [
     title: "Census India / Open Government Data",
     icon: Database,
     description:
-      "Population and socioeconomic context can be sourced from Census India and the Government Open Data platform. The current prototype keeps any illustrative context explicitly labelled until verified data is connected.",
+            "Unavailable in this build: there is no Census or data.gov.in adapter. No population statistic is currently included in scoring.",
   },
   {
     title: "UDISE+ / Government Open Data",
     icon: Database,
     description:
-      "Education infrastructure datasets provide examples of public-service infrastructure context that can be connected to demand clusters.",
+            "Future adapter only: UDISE+ data is not connected and no education-infrastructure value is currently used.",
   },
   {
     title: "PM GatiShakti / Infrastructure Planning",
     icon: Globe2,
     description:
-      "PM GatiShakti provides a model for combining ongoing and future infrastructure projects with GIS layers. VayuNetra treats this as planning context, not as a claim of direct live access in the prototype.",
+            "Future adapter only: PM GatiShakti planning data is not connected; VayuNetra does not claim access to its live project feed.",
   },
   {
     title: "MoSPI Infrastructure Statistics",
     icon: Code2,
     description:
-      "MoSPI infrastructure statistics provide national and state-level infrastructure indicators and document data gaps. They are suitable for the production context layer.",
+            "Future adapter only: MoSPI infrastructure statistics are not connected to this prototype or its priority scores.",
   },
 ];
 
@@ -86,9 +86,9 @@ export default function SourcesPage() {
           </h1>
 
           <p className="mt-4 text-sm leading-6 text-slate-400 sm:text-base">
-            VayuNetra combines community observations, public environmental
-            information and satellite-derived indicators to identify areas
-            that may need further environmental attention.
+            VayuNetra combines community observations with a live satellite
+            estimate where configured. Demographic, ground-monitoring and
+            public-investment context is currently unavailable or illustrative.
           </p>
         </header>
 

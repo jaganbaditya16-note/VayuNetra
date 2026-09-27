@@ -194,135 +194,16 @@ export default function ReportPage() {
     setSubmitError("");
 
     try {
-      let environmentalEvidence = null;
-
-      if (location) {
-        const environmentalResponse = await fetch(
-          `/api/environmental?latitude=${location.latitude}&longitude=${location.longitude}`
-        );
-
-        const environmentalData = await environmentalResponse.json();
-
-        if (environmentalResponse.ok && environmentalData.success) {
-          environmentalEvidence = environmentalData.satellite ?? null;
-        }
-      }
-
-      const geminiFormData = new FormData();
-
-      geminiFormData.append("description", description);
-      geminiFormData.append("language", language);
-      geminiFormData.append("location", JSON.stringify(location));
-      geminiFormData.append("evidence", JSON.stringify(environmentalEvidence));
-
-      if (photo) {
-        geminiFormData.append("image", photo);
-      }
-
-      const geminiResponse = await fetch("/api/gemini", {
-        method: "POST",
-        body: geminiFormData,
-      });
-
-      const geminiData = await geminiResponse.json();
-
-      let reportAnalysis;
-
-      if (!geminiResponse.ok) {
-        if (geminiResponse.status !== 429) {
-          throw new Error(
-            geminiData.error || "Failed to analyze report with Gemini."
-          );
-        }
-
-        const lowerDescription = description.toLowerCase();
-
-        let category = "other";
-        let severity = "moderate";
-        let recommendedAction =
-          "Review the reported location and consider a local environmental inspection.";
-
-        if (
-          lowerDescription.includes("smoke") ||
-          lowerDescription.includes("burn") ||
-          lowerDescription.includes("burning")
-        ) {
-          category = "burning";
-          recommendedAction =
-            "Verify the reported smoke source and, if open burning is confirmed, request local enforcement or mitigation.";
-        } else if (
-          lowerDescription.includes("dust") ||
-          lowerDescription.includes("construction")
-        ) {
-          category = "dust";
-          recommendedAction =
-            "Inspect the reported area and consider dust-control measures such as water spraying and construction-site compliance.";
-        } else if (
-          lowerDescription.includes("traffic") ||
-          lowerDescription.includes("vehicle") ||
-          lowerDescription.includes("car")
-        ) {
-          category = "vehicular";
-          recommendedAction =
-            "Review traffic conditions and consider an inspection of congestion or vehicle-emission sources.";
-        } else if (
-          lowerDescription.includes("factory") ||
-          lowerDescription.includes("industrial")
-        ) {
-          category = "industrial";
-          recommendedAction =
-            "Review the nearby industrial area and consider an environmental compliance inspection.";
-        } else if (
-          lowerDescription.includes("waste") ||
-          lowerDescription.includes("garbage")
-        ) {
-          category = "waste";
-          recommendedAction =
-            "Inspect the reported waste location and arrange appropriate collection or cleanup.";
-        }
-
-        if (
-          lowerDescription.includes("severe") ||
-          lowerDescription.includes("dangerous") ||
-          lowerDescription.includes("unbearable")
-        ) {
-          severity = "high";
-        }
-
-        reportAnalysis = {
-          category,
-          severity,
-          summary: description.trim(),
-          possibleSources: [
-            "Citizen-reported source; requires verification",
-          ],
-          recommendedAction,
-          confidence: 0.55,
-          provider: "local-fallback",
-          providerMessage:
-            "Gemini quota is temporarily unavailable; this is a rule-based fallback analysis.",
-        };
-      } else {
-        reportAnalysis = {
-          ...geminiData.analysis,
-          provider: "gemini",
-        };
-      }
-
-      console.log("Environmental analysis:", reportAnalysis);
-      setAnalysis(reportAnalysis);
+      const submission = new FormData();
+      submission.append("description", description);
+      submission.append("language", language);
+      submission.append("location", JSON.stringify(location));
+      submission.append("channel", "web");
+      if (photo) submission.append("image", photo);
 
       const reportResponse = await fetch("/api/report", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          description,
-          language,
-          location,
-          analysis: reportAnalysis,
-        }),
+        body: submission,
       });
 
       const reportData = await reportResponse.json();
@@ -333,7 +214,7 @@ export default function ReportPage() {
         );
       }
 
-      console.log("Stored environmental report:", reportData.report);
+      setAnalysis(reportData.analysis);
 
       setSubmitted(true);
     } catch (error) {

@@ -1,6 +1,10 @@
 import fs from "fs";
 import path from "path";
+import { isCivicCategory } from "@/lib/environmental/types";
 import type { CitizenReport } from "@/lib/environmental/types";
+import { getReportsPersistenceConfiguration } from "@/lib/reports/persistence-config";
+import type { GeographicHierarchy } from "@/lib/geography/types";
+import { validateGeographicHierarchy } from "@/lib/geography/types";
 
 const reportsFile = path.join(process.cwd(), "data", "reports.json");
 
@@ -11,6 +15,9 @@ type StoredReport = CitizenReport & {
   recommendedAction?: string;
   confidence?: number | null;
   evidence?: Record<string, unknown>;
+  status?: string;
+  isSample?: boolean;
+  geography?: GeographicHierarchy | null;
 };
 
 function readFallbackReports(): StoredReport[] {
@@ -22,10 +29,9 @@ function readFallbackReports(): StoredReport[] {
 }
 
 function supabaseConfig() {
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const key = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
-  if (!url || !key) return null;
-  return { url: url.replace(/\/$/, ""), key };
+  const config = getReportsPersistenceConfiguration();
+  if (config.mode === "error") throw new Error(config.error);
+  return config;
 }
 
 function mapRow(row: Record<string, unknown>): StoredReport {
@@ -33,7 +39,7 @@ function mapRow(row: Record<string, unknown>): StoredReport {
     id: String(row.id),
     latitude: typeof row.latitude === "number" ? row.latitude : null,
     longitude: typeof row.longitude === "number" ? row.longitude : null,
-    category: String(row.category ?? "other"),
+    category: isCivicCategory(row.category) ? row.category : "other",
     severity: String(row.severity ?? "moderate") as CitizenReport["severity"],
     summary: String(row.summary ?? row.description ?? ""),
     reportedAt: String(row.created_at ?? new Date().toISOString()),
@@ -43,34 +49,34 @@ function mapRow(row: Record<string, unknown>): StoredReport {
     recommendedAction: typeof row.recommended_action === "string" ? row.recommended_action : undefined,
     confidence: typeof row.confidence === "number" ? row.confidence : null,
     evidence: row.evidence && typeof row.evidence === "object" && !Array.isArray(row.evidence) ? (row.evidence as Record<string, unknown>) : {},
+    status: typeof row.status === "string" ? row.status : "reported",
+    isSample: row.is_sample === true,
+    geography: validateGeographicHierarchy(row.geography),
   };
 }
 
 export async function getReports(): Promise<StoredReport[]> {
   const config = supabaseConfig();
-  if (!config) return readFallbackReports();
-  try {
-    const response = await fetch(`${config.url}/rest/v1/vayunetra_reports?select=*&order=created_at.desc`, {
-      headers: { apikey: config.key },
+  if (config.mode === "local-json") return readFallbackReports();
+  const response = await fetch(`${config.url}/rest/v1/vayunetra_reports?select=*&order=created_at.desc`, {
+      headers: {
+        apikey: config.serviceRoleKey,
+        Authorization: `Bearer ${config.serviceRoleKey}`,
+      },
       cache: "no-store",
-    });
-    if (!response.ok) {
-      console.error("Supabase report read failed:", response.status);
-      return readFallbackReports();
-    }
-    const rows: unknown = await response.json();
-    return Array.isArray(rows)
-      ? rows.filter((row): row is Record<string, unknown> => typeof row === "object" && row !== null).map(mapRow)
-      : [];
-  } catch (error) {
-    console.error("Supabase report read error:", error);
-    return readFallbackReports();
+  });
+  if (!response.ok) {
+    throw new Error(`Supabase report read failed (${response.status}).`);
   }
+  const rows: unknown = await response.json();
+  return Array.isArray(rows)
+    ? rows.filter((row): row is Record<string, unknown> => typeof row === "object" && row !== null).map(mapRow)
+    : [];
 }
 
 export async function addReport(report: StoredReport) {
   const config = supabaseConfig();
-  if (!config) {
+  if (config.mode === "local-json") {
     const reports = readFallbackReports();
     reports.push(report);
     fs.writeFileSync(reportsFile, JSON.stringify(reports, null, 2), "utf8");
@@ -78,7 +84,12 @@ export async function addReport(report: StoredReport) {
   }
   const response = await fetch(`${config.url}/rest/v1/vayunetra_reports`, {
     method: "POST",
-    headers: { apikey: config.key, "Content-Type": "application/json", Prefer: "return=representation" },
+    headers: {
+      apikey: config.serviceRoleKey,
+      Authorization: `Bearer ${config.serviceRoleKey}`,
+      "Content-Type": "application/json",
+      Prefer: "return=representation",
+    },
     body: JSON.stringify({
       description: report.description ?? report.summary,
       language: report.language ?? "en",
@@ -88,7 +99,8 @@ export async function addReport(report: StoredReport) {
       possible_sources: report.possibleSources ?? [],
       recommended_action: report.recommendedAction ?? null,
       confidence: report.confidence ?? null, evidence: report.evidence ?? {},
-      source: "citizen", is_sample: false, status: "reported",
+      source: "citizen", is_sample: report.isSample ?? false, status: report.status ?? "reported",
+      geography: report.geography ?? null,
     }),
   });
   if (!response.ok) {

@@ -103,6 +103,8 @@ Required environment variables include the Gemini API key and any credentials ne
 
 ## Production direction
 
+A deployment readiness endpoint is available at `/api/health`. It reports only coarse configuration state and returns HTTP 503 in production when required persistence/integrity configuration is missing. It never returns secret values.
+
 The intended cloud architecture is:
 
 ```text
@@ -117,6 +119,72 @@ Next.js service on Cloud Run
 
 Cloud Run supports deploying existing Next.js applications from source. Use a production-compatible Linux/Python execution path for Earth Engine integrations; do not rely on the Windows `py` launcher used by local development.
 
+## Persistence and database security
+
+Report records are stored in `public.vayunetra_reports`. The versioned schema and RLS migration is
+[`supabase/migrations/20260927000100_reports_data_governance.sql`](supabase/migrations/20260927000100_reports_data_governance.sql).
+Apply it to each Supabase project before deploying the application.
+
+The browser does not read or write the reports table. Public pages call the Next.js API, which
+returns a restricted projection. Supabase grants no report-table access to the `anon` role;
+authenticated direct reads are limited by RLS to users whose trusted `app_metadata.role` is
+`operator`. Citizen submissions go through server validation and use `SUPABASE_SERVICE_ROLE_KEY`,
+which must remain server-only. There is no direct public aggregate view because current public
+consumers use the API projection.
+
+The migration adopts the existing UUID primary key and adds only missing columns. It preserves
+existing rows, evidence JSON, source/status definitions, indexes, and the live category constraint;
+the civic category set is not broadened in this phase. Existing table policies are replaced with the
+explicit operator-read policy and no anonymous table access.
+
+Production requires `SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY`. A missing configuration or a
+Supabase read/write failure is an error in production and never falls back to `data/reports.json`.
+Without Supabase configuration, non-production environments use the local JSON file for development
+and tests. A configured Supabase service-role connection can also be used outside production.
+
+Production report signatures require the dedicated `VAYUNETRA_INTEGRITY_SECRET`. It signs the
+priority-relevant report fields so direct database edits and unsigned historical rows cannot enter
+authoritative scoring. It is independent of `GEMINI_API_KEY`; production priority and submission
+operations fail with a configuration error when the dedicated secret is absent. Generate a private
+value (for example with `openssl rand -hex 32`) and supply it through the deployment secret manager.
+Do not commit it or expose it to browser code. See [`.env.example`](.env.example) for variable names.
+
+Pre-integrity and unsigned records remain available to the history projection but are excluded from
+hotspot and priority calculations. This migration does not mark or backfill legacy rows as
+validated. They require a future trusted revalidation or explicit reviewed migration before they
+can influence scoring.
+
+## Public-data provenance and current availability
+
+The provider-neutral public-data catalog is available at `/api/public-data`. Each dataset reports publisher, URL, retrieval/measurement date, geography, freshness, verification, and delivery mode where a source is connected. Missing sources return `value: null` and `verification: unavailable`; illustrative prototype locations are labelled `illustrative` and never enter priority scoring.
+
+The implemented environmental adapter is Google Earth Engine over ESA Copernicus Sentinel-5P TROPOMI NO₂. The result is a satellite column estimate, not AQI or a ground measurement. The API records retrieval time, measurement window, geographic level, source URL, freshness, and live/cache delivery. CPCB ground monitoring, Census/demographics, UDISE+, MoSPI infrastructure, and PM GatiShakti investment/planning feeds are unavailable in this build. No statistics are invented for these gaps.
+
+See [API documentation](docs/API.md) for request/authorization boundaries, [data provenance policy](docs/DATA_PROVENANCE.md) for dataset status and priority-input rules, and [deployment guidance](docs/DEPLOYMENT.md) for the zero-cost-first Cloud Run path.
+
+## Human review and geographic portability
+
+Citizen reports begin as `reported`. The operator API supports the workflow `reported → under_review → verified/action_needed/rejected → resolved`, controlled transitions, authority assignment text, private notes, escalation, timestamps, and an append-only signed review-event table. Operators authenticate through Supabase Auth and need trusted `app_metadata.role=operator`; the browser has no direct table access. A report marked verified is a human finding; AI recommendations do not authorize government action. The operator API and `/operator` reviewer console provide the workflow. The browser uses only Supabase publishable auth credentials; report data remains server-side behind the operator API.
+
+The local migration filename matches the applied production migration version `20260927100622_human_review_workflow.sql`.
+
+Migration `20260927100622_human_review_workflow.sql` adds the schema and is applied to the linked Supabase project. The `/operator` reviewer console uses the protected operator API; the browser never receives the service-role key. Review history is restricted to server-side service-role access and should be verified after deployment. Existing legacy reports default to unverified.
+
+Geography is represented through country and administrative levels (country, state/province, district, city/municipality, ward/local area) with optional identifiers and names. India (`IN`) is the only implemented adapter. Other BRICS country adapters and boundary/geocoding datasets are future work; no live BRICS coverage is claimed. Priority and hotspot clustering use coordinates when available and validated administrative geography otherwise. Public maps omit precise coordinates and overly detailed geography.
+
+## Runtime, deployment, and security operations
+
+Use a supported Node.js LTS runtime (Node 24 in the Docker and CI configuration) and `npm ci` for deterministic installation. Production requires `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, and a dedicated 32-byte-or-longer `VAYUNETRA_INTEGRITY_SECRET`. `GEMINI_API_KEY` enables Gemini; absence is reported as deterministic fallback analysis. Earth Engine requires server runtime credentials and Python dependencies. Never put secrets in `NEXT_PUBLIC_*` variables or source control.
+
+Report/Gemini bodies have explicit byte limits, and provider calls have bounded timeouts. The built-in rate limiter is bounded but process-local: it does not coordinate limits across multiple instances. Use a shared limiter before exposing a horizontally scaled public service to abuse. Local JSON persistence is development-only; production reads/writes require Supabase.
+
+## Implemented, illustrative, and unavailable
+
+- **Implemented:** privacy-safe server projections, server-side Gemini/fallback classification, integrity signatures, Supabase persistence/RLS, Earth Engine Sentinel-5P adapter, explainable priority calculation, human-review API/schema, and India geography validation.
+- **Illustrative:** the existing `data/development-context.json` prototype location/context fixture. It is labelled illustrative and excluded from authoritative priority scores.
+- **Unavailable:** fresh machine-ingested CPCB station data, live Census/UDISE+/PM GatiShakti operational feeds, WhatsApp/SMS provider transport, and other BRICS geography adapters. An official-source registry and one verified-but-stale MoSPI planning snapshot are included for provenance; the stale snapshot does not affect scoring.
+- **Future integration:** connect licensed datasets through provenance-validating adapters and only then permit verified fresh values into priority scoring.
+
 ## Competition positioning
 
 **Problem:** citizen demand is fragmented and difficult to prioritize with evidence.
@@ -125,3 +193,10 @@ Cloud Run supports deploying existing Next.js applications from source. Use a pr
 
 **Differentiator:** unlike a feedback chatbot, VayuNetra emphasizes corroboration, provenance, uncertainty and an explicit human-verification step before action.
 
+
+
+## Zero-cost deployment path
+
+The repository is designed to stay within free/always-free usage where possible. For the Python-backed Earth Engine process, Cloud Run is the most compatible single-service target because the Docker image contains both Node.js and Python. Google documents an always-free Cloud Run request/compute tier, including 2 million requests/month and free CPU/RAM quotas, but usage above the free tier or unrelated services can incur charges; keep minimum instances at zero and monitor usage.
+
+Before deployment, set `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, `VAYUNETRA_INTEGRITY_SECRET`, `GEMINI_API_KEY`, and the Earth Engine server credentials in the platform secret manager. Never place service-role or Earth Engine credentials in `NEXT_PUBLIC_*` variables.

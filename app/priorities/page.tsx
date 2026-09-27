@@ -7,7 +7,7 @@ import VayuHeader from "@/components/VayuHeader";
 
 type Priority = {
   id: string;
-  location: { city: string; area: string; latitude: number; longitude: number };
+  location: { city: string; area: string; latitude: number | null; longitude: number | null };
   priorityBand: string;
   priorityScore: number;
   demandSignal: number;
@@ -133,7 +133,7 @@ export default function PrioritiesPage() {
                 </div>
 
                 <div className="mt-4 flex items-center justify-between border-t border-white/[0.06] pt-4 text-[10px] text-slate-600">
-                  <span className="flex items-center gap-1"><MapPin className="h-3 w-3" /> {item.location.latitude.toFixed(4)}, {item.location.longitude.toFixed(4)}</span>
+                  <span className="flex items-center gap-1"><MapPin className="h-3 w-3" /> {item.location.latitude !== null && item.location.longitude !== null ? `${item.location.latitude.toFixed(1)}, ${item.location.longitude.toFixed(1)}` : "Citizen-reported administrative area"}</span>
                   <span>{item.dataQuality} context</span>
                 </div>
               </article>
