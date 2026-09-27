@@ -12,8 +12,9 @@ import { internalServiceUrl } from "../lib/security/internal-origin.ts";
 
 test("public provenance rejects malformed, stale, unavailable, and falsely verified data", () => {
   const catalog = getPublicContextCatalog();
-  assert.equal(catalog.demographics.value, null);
-  assert.equal(catalog.demographics.provenance.verification, "unavailable");
+  assert.equal(catalog.demographics.provenance.verification, "verified");
+  assert.equal(catalog.demographics.provenance.freshness, "stale");
+  assert.equal(catalog.demographics.value.population, 112374333);
   assert.equal(isPriorityTrustworthy(catalog.demographics), false);
   assert.equal(catalog.illustrativeDevelopmentContext.provenance.delivery, "illustrative");
   assert.equal(isPriorityTrustworthy(catalog.illustrativeDevelopmentContext), false);
@@ -23,17 +24,17 @@ test("public provenance rejects malformed, stale, unavailable, and falsely verif
   assert.equal(isPriorityTrustworthy(stale), false);
 });
 
-test("official source registry keeps public sources explicit and planning snapshots out of scoring when stale", () => {
+test("official source registry keeps public sources explicit and marks cached snapshots", () => {
   assert.ok(OFFICIAL_SOURCE_REGISTRY.length >= 4);
   for (const source of OFFICIAL_SOURCE_REGISTRY) {
-    assert.equal(source.status, "source_verified_not_ingested");
+    assert.equal(["source_verified_not_ingested", "snapshot_ingested"].includes(source.status), true);
     assert.equal(new URL(source.sourceUrl).protocol, "https:");
   }
   const snapshot = VERIFIED_PLANNING_SNAPSHOTS[0];
   assert.equal(snapshot.provenance.geographyId, "IN-MH");
   assert.equal(snapshot.provenance.verification, "verified");
   assert.equal(snapshot.provenance.freshness, "stale");
-  assert.equal(snapshot.useInPriorityScoring, false);
+  assert.equal(snapshot.useInPriorityScoring, true);
 });
 
 test("review migration is represented with a current applied-schema version in the deployment package", () => {
@@ -53,6 +54,13 @@ test("illustrative and unverified public context cannot influence priority score
   const withVerifiedContext = buildDevelopmentPriority({ ...input, context: verified }, []);
   assert.equal(withVerifiedContext.dataQuality, "verified");
   assert.ok(withVerifiedContext.infrastructureGap > 0);
+
+  const staleVerified = { ...verified, freshness: "stale" };
+  const withStaleVerifiedContext = buildDevelopmentPriority({ ...input, context: staleVerified }, []);
+  assert.equal(withStaleVerifiedContext.dataQuality, "mixed");
+  assert.ok(withStaleVerifiedContext.infrastructureGap > 0);
+  assert.ok(withStaleVerifiedContext.infrastructureGap < withVerifiedContext.infrastructureGap);
+  assert.ok(withStaleVerifiedContext.rationale.some((line) => line.includes("70% weight")));
 });
 
 test("India geography normalizes identifiers and unsupported countries stay unavailable", () => {
