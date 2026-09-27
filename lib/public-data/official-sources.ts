@@ -4,7 +4,7 @@ export type OfficialSourceReference = {
   publisher: string;
   sourceUrl: string;
   scope: string;
-  status: "source_verified_not_ingested";
+  status: "source_verified_not_ingested" | "snapshot_ingested";
   notes: string;
 };
 
@@ -15,8 +15,8 @@ export const OFFICIAL_SOURCE_REGISTRY: readonly OfficialSourceReference[] = [
     publisher: "Office of the Registrar General & Census Commissioner, India",
     sourceUrl: "https://censusindia.gov.in/census.website/en/data",
     scope: "Population, households and socioeconomic indicators at administrative levels.",
-    status: "source_verified_not_ingested",
-    notes: "Official Census data are available through tables, a data API and Population Finder. Values are not pulled into priority scoring until a validated adapter is configured.",
+    status: "snapshot_ingested",
+    notes: "VayuNetra ingests a provenance-tracked Maharashtra population baseline from Census 2011. It is explicitly historical and freshness-discounted rather than treated as a current estimate.",
   },
   {
     id: "udise-plus",
@@ -24,8 +24,8 @@ export const OFFICIAL_SOURCE_REGISTRY: readonly OfficialSourceReference[] = [
     publisher: "Department of School Education & Literacy, Ministry of Education",
     sourceUrl: "https://udiseplus.gov.in/",
     scope: "School profile, infrastructure/facilities, student and teacher information.",
-    status: "source_verified_not_ingested",
-    notes: "Official UDISE+ is a nationwide education management information system with infrastructure/facilities data. No authenticated extraction is required in this prototype; values remain unavailable until a licensed/public adapter is configured.",
+    status: "snapshot_ingested",
+    notes: "VayuNetra ingests a cached Maharashtra state infrastructure snapshot from the official UDISE+ 2024-25 booklet, including electricity and functional toilet indicators.",
   },
   {
     id: "mospi-paimana",
@@ -33,8 +33,8 @@ export const OFFICIAL_SOURCE_REGISTRY: readonly OfficialSourceReference[] = [
     publisher: "Ministry of Statistics and Programme Implementation",
     sourceUrl: "https://ipm.mospi.gov.in/Home/PublicDashboard",
     scope: "Central-sector infrastructure and project monitoring, including state-wise project counts, costs and expenditure.",
-    status: "source_verified_not_ingested",
-    notes: "The public dashboard publishes state/project monitoring information. VayuNetra keeps source snapshots separate from live scoring and marks age explicitly.",
+    status: "snapshot_ingested",
+    notes: "VayuNetra ingests the verified Maharashtra March 2026 project-monitoring snapshot for provenance and context scoring. It is cached and freshness-discounted.",
   },
   {
     id: "pm-gatishakti",
@@ -69,7 +69,7 @@ export const VERIFIED_PLANNING_SNAPSHOTS = [
       verification: "verified" as const,
       delivery: "cached" as const,
     },
-    useInPriorityScoring: false,
-    reason: "Official source, but older than the current freshness window; shown for provenance and planning context only until refreshed.",
+    useInPriorityScoring: true,
+    reason: "Official Maharashtra project-monitoring snapshot; used as a state-level planning/execution signal with a 70% freshness-weight discount.",
   },
 ] as const;
