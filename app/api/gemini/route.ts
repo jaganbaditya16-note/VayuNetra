@@ -77,7 +77,7 @@ Return ONLY valid JSON with these fields:
   "confidence": 0
 }
 
-The confidence must be a number from 0 to 100.
+The confidence must be a number from 0 to 1, where 1 means highest confidence.
 
 Important:
 - Do not claim that a pollution source is confirmed from the citizen report alone.

@@ -243,7 +243,7 @@ export default function ReportPage() {
             "Citizen-reported source; requires verification",
           ],
           recommendedAction,
-          confidence: 55,
+          confidence: 0.55,
           provider: "local-fallback",
           providerMessage:
             "Gemini quota is temporarily unavailable; this is a rule-based fallback analysis.",
@@ -360,7 +360,7 @@ export default function ReportPage() {
                   </div>
 
                   <div className="rounded-full border border-emerald-400/20 bg-emerald-400/10 px-3 py-1 text-xs text-emerald-300">
-                    {analysis.confidence}% confidence
+                    {Math.round(analysis.confidence * 100)}% confidence
                   </div>
                 </div>
 
@@ -499,7 +499,7 @@ export default function ReportPage() {
                       </div>
 
                       <span className="rounded-full bg-white/10 px-3 py-1 text-xs font-semibold text-white/70">
-                        {analysis.confidence}% confidence
+                        {Math.round(analysis.confidence * 100)}% confidence
                       </span>
                     </div>
 

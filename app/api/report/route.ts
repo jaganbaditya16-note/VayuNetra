@@ -80,6 +80,20 @@ export async function POST(request: Request) {
         ? (analysis.severity as Severity)
         : "moderate";
 
+    const normalizedConfidence =
+      typeof analysis?.confidence === "number" &&
+      Number.isFinite(analysis.confidence)
+        ? Math.min(
+            1,
+            Math.max(
+              0,
+              analysis.confidence > 1
+                ? analysis.confidence / 100
+                : analysis.confidence
+            )
+          )
+        : null;
+
     const report = await addReport({
       id: `report-${Date.now()}`,
       latitude,
@@ -100,10 +114,7 @@ export async function POST(request: Request) {
         typeof analysis?.recommendedAction === "string"
           ? analysis.recommendedAction
           : undefined,
-      confidence:
-        typeof analysis?.confidence === "number"
-          ? analysis.confidence
-          : null,
+      confidence: normalizedConfidence,
       evidence: {
         provider: analysis?.provider ?? "unknown",
         environmentalEvidence: analysis?.environmentalEvidence ?? null,
