@@ -84,6 +84,16 @@ export default function ReportPage() {
       }
     );
   };
+  const speechLanguageCodes: Record<string, string> = {
+    English: "en-IN",
+    Hindi: "hi-IN",
+    Marathi: "mr-IN",
+    Bengali: "bn-IN",
+    Tamil: "ta-IN",
+    Telugu: "te-IN",
+    Kannada: "kn-IN",
+  };
+
   const handleVoiceReport = () => {
     const speechWindow = window as WindowWithSpeechRecognition;
     const SpeechRecognition =
@@ -97,7 +107,7 @@ export default function ReportPage() {
 
     const recognition = new SpeechRecognition();
 
-    recognition.lang = "en-IN";
+    recognition.lang = speechLanguageCodes[language] ?? "en-IN";
     recognition.interimResults = false;
     recognition.continuous = false;
 
