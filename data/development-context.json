@@ -1,0 +1,226 @@
+[
+  {
+    "id": "ctx-mumbai-chembur",
+    "name": "Chembur demonstration context",
+    "state": "Maharashtra",
+    "country": "India",
+    "latitude": 19.052,
+    "longitude": 72.894,
+    "populationExposure": 0.82,
+    "infrastructureGap": 0.72,
+    "investmentAlignment": 0.68,
+    "inclusionNeed": 0.64,
+    "existingServices": [
+      "environmental monitoring",
+      "municipal services"
+    ],
+    "plannedPrograms": [
+      "illustrative public-investment context"
+    ],
+    "contextStatus": "illustrative",
+    "sources": [
+      "Prototype context only",
+      "Census India / data.gov.in can supply population context",
+      "CPCB / public monitoring data can supply environmental context",
+      "PM GatiShakti can supply infrastructure-project context"
+    ]
+  },
+  {
+    "id": "ctx-delhi-anand-vihar",
+    "name": "Anand Vihar demonstration context",
+    "state": "Delhi",
+    "country": "India",
+    "latitude": 28.646,
+    "longitude": 77.316,
+    "populationExposure": 0.9,
+    "infrastructureGap": 0.76,
+    "investmentAlignment": 0.72,
+    "inclusionNeed": 0.58,
+    "existingServices": [
+      "environmental monitoring",
+      "transport infrastructure"
+    ],
+    "plannedPrograms": [
+      "illustrative public-investment context"
+    ],
+    "contextStatus": "illustrative",
+    "sources": [
+      "Prototype context only",
+      "Census India / data.gov.in can supply population context",
+      "CPCB / public monitoring data can supply environmental context",
+      "PM GatiShakti can supply infrastructure-project context"
+    ]
+  },
+  {
+    "id": "ctx-pune-hadapsar",
+    "name": "Hadapsar demonstration context",
+    "state": "Maharashtra",
+    "country": "India",
+    "latitude": 18.508,
+    "longitude": 73.926,
+    "populationExposure": 0.74,
+    "infrastructureGap": 0.69,
+    "investmentAlignment": 0.65,
+    "inclusionNeed": 0.62,
+    "existingServices": [
+      "municipal services",
+      "transport infrastructure"
+    ],
+    "plannedPrograms": [
+      "illustrative public-investment context"
+    ],
+    "contextStatus": "illustrative",
+    "sources": [
+      "Prototype context only",
+      "Census India / data.gov.in can supply population context",
+      "CPCB / public monitoring data can supply environmental context",
+      "PM GatiShakti can supply infrastructure-project context"
+    ]
+  },
+  {
+    "id": "ctx-ahmedabad-naroda",
+    "name": "Naroda demonstration context",
+    "state": "Gujarat",
+    "country": "India",
+    "latitude": 23.052,
+    "longitude": 72.668,
+    "populationExposure": 0.77,
+    "infrastructureGap": 0.7,
+    "investmentAlignment": 0.7,
+    "inclusionNeed": 0.6,
+    "existingServices": [
+      "industrial infrastructure",
+      "municipal services"
+    ],
+    "plannedPrograms": [
+      "illustrative public-investment context"
+    ],
+    "contextStatus": "illustrative",
+    "sources": [
+      "Prototype context only",
+      "Census India / data.gov.in can supply population context",
+      "CPCB / public monitoring data can supply environmental context",
+      "PM GatiShakti can supply infrastructure-project context"
+    ]
+  },
+  {
+    "id": "ctx-kolkata-ballygunge",
+    "name": "Ballygunge demonstration context",
+    "state": "West Bengal",
+    "country": "India",
+    "latitude": 22.522,
+    "longitude": 88.365,
+    "populationExposure": 0.71,
+    "infrastructureGap": 0.63,
+    "investmentAlignment": 0.61,
+    "inclusionNeed": 0.66,
+    "existingServices": [
+      "municipal services",
+      "transport infrastructure"
+    ],
+    "plannedPrograms": [
+      "illustrative public-investment context"
+    ],
+    "contextStatus": "illustrative",
+    "sources": [
+      "Prototype context only",
+      "Census India / data.gov.in can supply population context",
+      "CPCB / public monitoring data can supply environmental context",
+      "PM GatiShakti can supply infrastructure-project context"
+    ]
+  },
+  {
+    "id": "ctx-mh-mumbai-official",
+    "name": "Maharashtra verified public-data context (Mumbai anchor)",
+    "state": "Maharashtra",
+    "country": "India",
+    "latitude": 19.076,
+    "longitude": 72.878,
+    "populationExposure": 0.09280998761149653,
+    "infrastructureGap": 0.1113163972286374,
+    "investmentAlignment": 0.7911227823435852,
+    "inclusionNeed": 0.06433256351039263,
+    "existingServices": [
+      "official UDISE+ education infrastructure indicators",
+      "state-level project monitoring"
+    ],
+    "plannedPrograms": [
+      "MoSPI PAIMANA state project monitoring context"
+    ],
+    "contextStatus": "verified",
+    "sources": [
+      "https://censusindia.gov.in/nada/index.php/catalog/42559",
+      "https://dashboard.udiseplus.gov.in/report2025/static/media/UDISE%2B2024_25_Booklet_existing.118ba29d4773e6372f72.pdf",
+      "https://ipm.mospi.gov.in/Content/PDF/FlashReport_March_2026.pdf"
+    ],
+    "sourceUrl": "https://ipm.mospi.gov.in/Content/PDF/FlashReport_March_2026.pdf",
+    "measuredAt": "2026-03",
+    "geographyId": "IN-MH",
+    "geographicLevel": "state",
+    "freshness": "stale",
+    "geography": {
+      "countryCode": "IN",
+      "levels": [
+        {
+          "level": "state_province",
+          "identifier": "MH-27",
+          "name": "Maharashtra"
+        }
+      ]
+    },
+    "dataNotes": [
+      "State-level context; not a ward-level or real-time demographic/infrastructure estimate.",
+      "Population exposure uses Maharashtra's Census 2011 population as a share of India's 2011 population baseline.",
+      "Infrastructure gap is the share of Maharashtra schools without functional electricity in UDISE+ 2024-25.",
+      "Inclusion need is the share of Maharashtra schools without functional girls' toilets in UDISE+ 2024-25.",
+      "Investment alignment is represented by cumulative expenditure divided by original project cost in the MoSPI March 2026 snapshot."
+    ]
+  },
+  {
+    "id": "ctx-mh-pune-official",
+    "name": "Maharashtra verified public-data context (Pune anchor)",
+    "state": "Maharashtra",
+    "country": "India",
+    "latitude": 18.52,
+    "longitude": 73.856,
+    "populationExposure": 0.09280998761149653,
+    "infrastructureGap": 0.1113163972286374,
+    "investmentAlignment": 0.7911227823435852,
+    "inclusionNeed": 0.06433256351039263,
+    "existingServices": [
+      "official UDISE+ education infrastructure indicators",
+      "state-level project monitoring"
+    ],
+    "plannedPrograms": [
+      "MoSPI PAIMANA state project monitoring context"
+    ],
+    "contextStatus": "verified",
+    "sources": [
+      "https://censusindia.gov.in/nada/index.php/catalog/42559",
+      "https://dashboard.udiseplus.gov.in/report2025/static/media/UDISE%2B2024_25_Booklet_existing.118ba29d4773e6372f72.pdf",
+      "https://ipm.mospi.gov.in/Content/PDF/FlashReport_March_2026.pdf"
+    ],
+    "sourceUrl": "https://ipm.mospi.gov.in/Content/PDF/FlashReport_March_2026.pdf",
+    "measuredAt": "2026-03",
+    "geographyId": "IN-MH",
+    "geographicLevel": "state",
+    "freshness": "stale",
+    "geography": {
+      "countryCode": "IN",
+      "levels": [
+        {
+          "level": "state_province",
+          "identifier": "MH-27",
+          "name": "Maharashtra"
+        }
+      ]
+    },
+    "dataNotes": [
+      "State-level context; not a ward-level or real-time demographic/infrastructure estimate.",
+      "Population exposure uses Maharashtra's Census 2011 population as a share of India's 2011 population baseline.",
+      "Infrastructure gap is the share of Maharashtra schools without functional electricity in UDISE+ 2024-25.",
+      "Inclusion need is the share of Maharashtra schools without functional girls' toilets in UDISE+ 2024-25.",
+      "Investment alignment is represented by cumulative expenditure divided by original project cost in the MoSPI March 2026 snapshot."
+    ]
+  }
+]

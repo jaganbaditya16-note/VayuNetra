@@ -1,0 +1,9 @@
+node_modules
+.next
+.git
+.github
+.env*
+data/reports.json
+*.backup
+*.phase*-backup
+npm-debug.log*

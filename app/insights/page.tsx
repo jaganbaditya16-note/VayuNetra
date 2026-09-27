@@ -17,9 +17,20 @@ import {
 } from "lucide-react";
 import VayuHeader from "@/components/VayuHeader";
 
+type Hotspot = {
+  confidence?: number;
+  satelliteEvidence?: unknown;
+  evidenceBasis?: string[];
+  severity?: string;
+};
+type Report = {
+  category?: string;
+  type?: string;
+};
+
 export default function InsightsPage() {
-  const [hotspots, setHotspots] = useState<any[]>([]);
-  const [reports, setReports] = useState<any[]>([]);
+  const [hotspots, setHotspots] = useState<Hotspot[]>([]);
+  const [reports, setReports] = useState<Report[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {

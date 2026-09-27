@@ -23,7 +23,7 @@ const sources = [
     title: "CPCB / Government Open Data",
     icon: Database,
     description:
-      "Public air-quality monitoring data can provide ground-based evidence where an official monitoring station is available. CPCB integration is designed as a separate data adapter.",
+            "Unavailable in this build: no verified CPCB live-feed adapter is configured. Ground measurements do not currently enter VayuNetra scoring.",
   },
   {
     title: "Citizen Reports",
@@ -35,7 +35,31 @@ const sources = [
     title: "Google Gemini",
     icon: BrainCircuit,
     description:
-      "Gemini is used to structure multilingual citizen reports, summarize evidence, identify categories and suggest possible follow-up actions.",
+      "Gemini structures multilingual citizen reports, extracts categories and severity, and turns unstructured community observations into machine-readable evidence for the prioritization pipeline.",
+  },
+  {
+    title: "Census India / Open Government Data",
+    icon: Database,
+    description:
+      "Verified cached snapshot: Maharashtra population baseline from Census 2011. It is historical rather than a current estimate and is freshness-discounted in priority scoring.",
+  },
+  {
+    title: "UDISE+ / Government Open Data",
+    icon: Database,
+    description:
+      "Verified cached snapshot: Maharashtra school-infrastructure indicators from UDISE+ 2024-25, including functional electricity and toilet coverage. The state-level context is freshness-discounted.",
+  },
+  {
+    title: "PM GatiShakti / Infrastructure Planning",
+    icon: Globe2,
+    description:
+            "Future adapter only: PM GatiShakti planning data is not connected; VayuNetra does not claim access to its live project feed.",
+  },
+  {
+    title: "MoSPI Infrastructure Statistics",
+    icon: Code2,
+    description:
+      "Verified cached snapshot: Maharashtra March 2026 PAIMANA project count, original cost and cumulative expenditure. It contributes a discounted state-level planning signal.",
   },
 ];
 
@@ -62,9 +86,11 @@ export default function SourcesPage() {
           </h1>
 
           <p className="mt-4 text-sm leading-6 text-slate-400 sm:text-base">
-            VayuNetra combines community observations, public environmental
-            information and satellite-derived indicators to identify areas
-            that may need further environmental attention.
+            VayuNetra combines community observations with a live satellite
+            estimate where configured and a provenance-tracked Maharashtra
+            public-data snapshot. Historical/annual government datasets are
+            explicitly marked and freshness-discounted rather than presented
+            as real-time local measurements.
           </p>
         </header>
 
@@ -105,7 +131,7 @@ export default function SourcesPage() {
               ["01", "Collect", "Citizen reports and available environmental observations."],
               ["02", "Understand", "AI structures multilingual reports into usable evidence."],
               ["03", "Fuse", "Location, citizen evidence and satellite indicators are combined."],
-              ["04", "Prioritize", "A confidence-aware hotspot and follow-up action are generated."],
+              ["04", "Prioritize", "Demand, evidence and planning context produce a transparent development-priority signal."],
             ].map(([number, title, description]) => (
               <div
                 key={number}

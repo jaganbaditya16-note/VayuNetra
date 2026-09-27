@@ -13,13 +13,45 @@ import {
 import VayuHeader from "@/components/VayuHeader";
 import VayuMap from "@/components/VayuMapClient";
 
-function normalize(spot: any, index: number) {
+type SatelliteEvidence = {
+  value?: number | null;
+  unit?: string;
+  source?: string;
+  measuredAt?: string | null;
+};
+
+type RawHotspot = {
+  id?: string | number;
+  location?: { city?: string; area?: string; latitude?: number | null; longitude?: number | null };
+  severity?: string;
+  confidence?: number;
+  reportCount?: number;
+  possibleContributors?: string[];
+  satelliteEvidence?: SatelliteEvidence;
+  evidenceBasis?: string[];
+};
+
+type NormalizedHotspot = {
+  id: string;
+  city: string;
+  area: string;
+  latitude: number | null;
+  longitude: number | null;
+  severity: string;
+  confidence: number;
+  reports: number;
+  source: string;
+  satelliteEvidence?: SatelliteEvidence;
+  evidenceBasis: string[];
+};
+
+function normalize(spot: RawHotspot, index: number): NormalizedHotspot {
   return {
     id: String(spot?.id ?? `api-${index}`),
     city: String(spot?.location?.city ?? "Reported area"),
     area: String(spot?.location?.area ?? "Citizen hotspot"),
-    latitude: Number(spot?.location?.latitude ?? 20),
-    longitude: Number(spot?.location?.longitude ?? 78),
+    latitude: typeof spot?.location?.latitude === "number" && Number.isFinite(spot.location.latitude) ? spot.location.latitude : null,
+    longitude: typeof spot?.location?.longitude === "number" && Number.isFinite(spot.location.longitude) ? spot.location.longitude : null,
     severity: String(spot?.severity ?? "moderate").replace(
       /^./,
       (value: string) => value.toUpperCase(),
@@ -37,19 +69,23 @@ function normalize(spot: any, index: number) {
 }
 
 export default function MapPage() {
-  const [hotspots, setHotspots] = useState<any[]>([]);
+  const [hotspots, setHotspots] = useState<NormalizedHotspot[]>([]);
   const [selectedId, setSelectedId] = useState<string>();
   const [filter, setFilter] = useState("All");
   const [loading, setLoading] = useState(true);
 
-  const load = () => {
-    setLoading(true);
+  useEffect(() => {
+    let active = true;
 
     fetch("/api/hotspots")
       .then((response) => response.json())
       .then((data) => {
-        const values = Array.isArray(data?.hotspots)
-          ? data.hotspots.map(normalize)
+        if (!active) return;
+
+        const values: NormalizedHotspot[] = Array.isArray(data?.hotspots)
+          ? data.hotspots.map((spot: RawHotspot, index: number) =>
+              normalize(spot, index),
+            )
           : [];
 
         setHotspots(values);
@@ -60,20 +96,23 @@ export default function MapPage() {
             : null;
 
         setSelectedId(
-          requestedId && values.some((item: any) => item.id === requestedId)
+          requestedId && values.some((item) => item.id === requestedId)
             ? requestedId
             : values[0]?.id,
         );
       })
       .catch(() => {
+        if (!active) return;
         setHotspots([]);
         setSelectedId(undefined);
       })
-      .finally(() => setLoading(false));
-  };
+      .finally(() => {
+        if (active) setLoading(false);
+      });
 
-  useEffect(() => {
-    load();
+    return () => {
+      active = false;
+    };
   }, []);
 
   const visible = useMemo(
@@ -116,7 +155,7 @@ export default function MapPage() {
 
           <button
             type="button"
-            onClick={load}
+            onClick={() => window.location.reload()}
             className="inline-flex items-center justify-center gap-2 rounded-xl border border-white/10 bg-white/[0.03] px-4 py-2.5 text-xs font-semibold text-slate-300 hover:bg-white/[0.07]"
           >
             <RefreshCw className={`h-4 w-4 ${loading ? "animate-spin" : ""}`} />
@@ -144,7 +183,7 @@ export default function MapPage() {
         <div className="grid gap-5 xl:grid-cols-[minmax(0,1.8fr)_390px]">
           <div className="overflow-hidden rounded-2xl border border-white/[0.08] bg-[#07101d] p-1">
             <VayuMap
-              hotspots={visible}
+              hotspots={visible.filter((item): item is NormalizedHotspot & { latitude: number; longitude: number } => item.latitude !== null && item.longitude !== null)}
               selectedId={selected?.id}
               onSelect={(item) => setSelectedId(item.id)}
               className="h-[620px] lg:h-[720px]"

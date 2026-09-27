@@ -1,8 +1,9 @@
-﻿import json
+import json
+import os
 import sys
 import ee
 
-PROJECT_ID = "vayunetra-509715"
+PROJECT_ID = os.getenv("EARTH_ENGINE_PROJECT_ID", "vayunetra-509715")
 DATASET = "COPERNICUS/S5P/NRTI/L3_NO2"
 
 

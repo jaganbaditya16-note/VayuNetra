@@ -2,7 +2,7 @@
 
 import { useEffect, useRef } from "react";
 import { CircleMarker, MapContainer, TileLayer, useMap } from "react-leaflet";
-import type { LatLngExpression, Map as LeafletMap } from "leaflet";
+import type { LatLngExpression } from "leaflet";
 
 export type VayuMapHotspot = {
   id: string;

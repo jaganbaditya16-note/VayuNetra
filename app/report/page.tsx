@@ -1,12 +1,41 @@
 "use client";
 
-import { useState } from "react";
+import Link from "next/link";
+import { type ChangeEvent, useRef, useState } from "react";
 import { ArrowLeft, Camera, MapPin, Mic, Send, Sparkles, Upload } from "lucide-react";
+
+type SpeechRecognitionResultLike = {
+  0: { transcript: string };
+};
+
+type SpeechRecognitionEventLike = {
+  results: { 0: SpeechRecognitionResultLike };
+};
+
+type SpeechRecognitionLike = {
+  lang: string;
+  interimResults: boolean;
+  continuous: boolean;
+  onstart: (() => void) | null;
+  onresult: ((event: SpeechRecognitionEventLike) => void) | null;
+  onerror: (() => void) | null;
+  onend: (() => void) | null;
+  start: () => void;
+};
+
+type SpeechRecognitionConstructor = new () => SpeechRecognitionLike;
+
+type WindowWithSpeechRecognition = Window & {
+  SpeechRecognition?: SpeechRecognitionConstructor;
+  webkitSpeechRecognition?: SpeechRecognitionConstructor;
+};
 
 export default function ReportPage() {
   const [language, setLanguage] = useState("English");
   const [description, setDescription] = useState("");
   const [listening, setListening] = useState(false);
+  const [photo, setPhoto] = useState<File | null>(null);
+  const photoInputRef = useRef<HTMLInputElement>(null);
   const [location, setLocation] = useState<{
     latitude: number;
     longitude: number;
@@ -57,10 +86,21 @@ export default function ReportPage() {
       }
     );
   };
+  const speechLanguageCodes: Record<string, string> = {
+    English: "en-IN",
+    Hindi: "hi-IN",
+    Marathi: "mr-IN",
+    Bengali: "bn-IN",
+    Tamil: "ta-IN",
+    Telugu: "te-IN",
+    Kannada: "kn-IN",
+  };
+
   const handleVoiceReport = () => {
+    const speechWindow = window as WindowWithSpeechRecognition;
     const SpeechRecognition =
-      (window as any).SpeechRecognition ||
-      (window as any).webkitSpeechRecognition;
+      speechWindow.SpeechRecognition ||
+      speechWindow.webkitSpeechRecognition;
 
     if (!SpeechRecognition) {
       alert("Speech recognition is not supported in this browser.");
@@ -69,7 +109,7 @@ export default function ReportPage() {
 
     const recognition = new SpeechRecognition();
 
-    recognition.lang = "en-IN";
+    recognition.lang = speechLanguageCodes[language] ?? "en-IN";
     recognition.interimResults = false;
     recognition.continuous = false;
 
@@ -77,7 +117,7 @@ export default function ReportPage() {
       setListening(true);
     };
 
-    recognition.onresult = (event: any) => {
+    recognition.onresult = (event: SpeechRecognitionEventLike) => {
       const transcript = event.results[0][0].transcript;
       setDescription((current) =>
         current ? `${current} ${transcript}` : transcript
@@ -108,6 +148,45 @@ export default function ReportPage() {
   providerMessage?: string;
 } | null>(null);
 
+  const handlePhotoChange = (
+    event: ChangeEvent<HTMLInputElement>
+  ) => {
+    const selectedFile = event.target.files?.[0] ?? null;
+
+    if (!selectedFile) {
+      return;
+    }
+
+    const allowedTypes = new Set([
+      "image/jpeg",
+      "image/png",
+      "image/webp",
+    ]);
+
+    if (!allowedTypes.has(selectedFile.type)) {
+      setSubmitError("Only JPEG, PNG, and WebP images are supported.");
+      event.target.value = "";
+      return;
+    }
+
+    if (selectedFile.size > 8 * 1024 * 1024) {
+      setSubmitError("Photo must be 8 MB or smaller.");
+      event.target.value = "";
+      return;
+    }
+
+    setSubmitError("");
+    setPhoto(selectedFile);
+  };
+
+  const handleRemovePhoto = () => {
+    setPhoto(null);
+
+    if (photoInputRef.current) {
+      photoInputRef.current.value = "";
+    }
+  };
+
   const handleSubmit = async () => {
     if (!description.trim()) return;
 
@@ -115,132 +194,16 @@ export default function ReportPage() {
     setSubmitError("");
 
     try {
-      let environmentalEvidence = null;
-
-      if (location) {
-        const environmentalResponse = await fetch(
-          `/api/environmental?latitude=${location.latitude}&longitude=${location.longitude}`
-        );
-
-        const environmentalData = await environmentalResponse.json();
-
-        if (environmentalResponse.ok && environmentalData.success) {
-          environmentalEvidence = environmentalData.satellite ?? null;
-        }
-      }
-
-      const geminiResponse = await fetch("/api/gemini", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          description,
-          language,
-          location,
-          evidence: environmentalEvidence,
-        }),
-      });
-
-      const geminiData = await geminiResponse.json();
-
-      let reportAnalysis;
-
-      if (!geminiResponse.ok) {
-        if (geminiResponse.status !== 429) {
-          throw new Error(
-            geminiData.error || "Failed to analyze report with Gemini."
-          );
-        }
-
-        const lowerDescription = description.toLowerCase();
-
-        let category = "other";
-        let severity = "moderate";
-        let recommendedAction =
-          "Review the reported location and consider a local environmental inspection.";
-
-        if (
-          lowerDescription.includes("smoke") ||
-          lowerDescription.includes("burn") ||
-          lowerDescription.includes("burning")
-        ) {
-          category = "burning";
-          recommendedAction =
-            "Verify the reported smoke source and, if open burning is confirmed, request local enforcement or mitigation.";
-        } else if (
-          lowerDescription.includes("dust") ||
-          lowerDescription.includes("construction")
-        ) {
-          category = "dust";
-          recommendedAction =
-            "Inspect the reported area and consider dust-control measures such as water spraying and construction-site compliance.";
-        } else if (
-          lowerDescription.includes("traffic") ||
-          lowerDescription.includes("vehicle") ||
-          lowerDescription.includes("car")
-        ) {
-          category = "vehicular";
-          recommendedAction =
-            "Review traffic conditions and consider an inspection of congestion or vehicle-emission sources.";
-        } else if (
-          lowerDescription.includes("factory") ||
-          lowerDescription.includes("industrial")
-        ) {
-          category = "industrial";
-          recommendedAction =
-            "Review the nearby industrial area and consider an environmental compliance inspection.";
-        } else if (
-          lowerDescription.includes("waste") ||
-          lowerDescription.includes("garbage")
-        ) {
-          category = "waste";
-          recommendedAction =
-            "Inspect the reported waste location and arrange appropriate collection or cleanup.";
-        }
-
-        if (
-          lowerDescription.includes("severe") ||
-          lowerDescription.includes("dangerous") ||
-          lowerDescription.includes("unbearable")
-        ) {
-          severity = "high";
-        }
-
-        reportAnalysis = {
-          category,
-          severity,
-          summary: description.trim(),
-          possibleSources: [
-            "Citizen-reported source; requires verification",
-          ],
-          recommendedAction,
-          confidence: 55,
-          provider: "local-fallback",
-          providerMessage:
-            "Gemini quota is temporarily unavailable; this is a rule-based fallback analysis.",
-        };
-      } else {
-        reportAnalysis = {
-          ...geminiData.analysis,
-          provider: "gemini",
-        };
-      }
-
-      console.log("Environmental analysis:", reportAnalysis);
-      setAnalysis(reportAnalysis);
+      const submission = new FormData();
+      submission.append("description", description);
+      submission.append("language", language);
+      submission.append("location", JSON.stringify(location));
+      submission.append("channel", "web");
+      if (photo) submission.append("image", photo);
 
       const reportResponse = await fetch("/api/report", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          description,
-          language,
-          location,
-          analysis: reportAnalysis,
-        }),
+        body: submission,
       });
 
       const reportData = await reportResponse.json();
@@ -251,7 +214,7 @@ export default function ReportPage() {
         );
       }
 
-      console.log("Stored environmental report:", reportData.report);
+      setAnalysis(reportData.analysis);
 
       setSubmitted(true);
     } catch (error) {
@@ -268,7 +231,7 @@ export default function ReportPage() {
     <main className="min-h-screen bg-[#07110f] text-white">
       <header className="border-b border-white/10 bg-[#091613]/90">
         <div className="mx-auto flex max-w-7xl items-center justify-between px-6 py-5">
-          <a href="/" className="flex items-center gap-3">
+          <Link href="/" className="flex items-center gap-3">
             <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-emerald-400/15 text-emerald-300">
               <Sparkles size={20} />
             </div>
@@ -276,15 +239,15 @@ export default function ReportPage() {
               <h1 className="text-lg font-bold">VayuNetra</h1>
               <p className="text-xs text-white/45">Community Environmental Intelligence</p>
             </div>
-          </a>
+          </Link>
 
-          <a
+          <Link
             href="/"
             className="flex items-center gap-2 rounded-xl border border-white/10 px-4 py-2 text-sm text-white/70 transition hover:bg-white/5"
           >
             <ArrowLeft size={16} />
             Dashboard
-          </a>
+          </Link>
         </div>
       </header>
 
@@ -332,7 +295,7 @@ export default function ReportPage() {
                   </div>
 
                   <div className="rounded-full border border-emerald-400/20 bg-emerald-400/10 px-3 py-1 text-xs text-emerald-300">
-                    {analysis.confidence}% confidence
+                    {Math.round(analysis.confidence * 100)}% confidence
                   </div>
                 </div>
 
@@ -364,7 +327,7 @@ export default function ReportPage() {
                   <ul className="mt-2 space-y-2 text-sm text-white/70">
                     {analysis.possibleSources.map((source, index) => (
                       <li key={index} className="flex gap-2">
-                        <span className="text-emerald-300">ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã‚Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢</span>
+                        <span className="text-emerald-300">•</span>
                         <span>{source}</span>
                       </li>
                     ))}
@@ -418,10 +381,39 @@ export default function ReportPage() {
                   {listening ? "Listening..." : "Report by voice"}
                 </button>
 
-                <button className="flex items-center justify-center gap-3 rounded-2xl border border-white/10 bg-white/[0.02] p-4 text-sm text-white/70 transition hover:bg-white/5">
-                  <Camera size={19} />
-                  Add photo
-                </button>
+                <div className="space-y-2">
+                  <input
+                    ref={photoInputRef}
+                    type="file"
+                    accept="image/jpeg,image/png,image/webp"
+                    onChange={handlePhotoChange}
+                    className="hidden"
+                  />
+
+                  <button
+                    type="button"
+                    onClick={() => photoInputRef.current?.click()}
+                    className="flex w-full items-center justify-center gap-3 rounded-2xl border border-white/10 bg-white/[0.02] p-4 text-sm text-white/70 transition hover:bg-white/5"
+                  >
+                    <Camera size={19} />
+                    {photo ? "Change photo" : "Add photo"}
+                  </button>
+
+                  {photo && (
+                    <div className="flex items-center justify-between gap-3 rounded-xl border border-emerald-400/10 bg-emerald-400/5 px-3 py-2">
+                      <span className="truncate text-xs text-white/60">
+                        {photo.name}
+                      </span>
+                      <button
+                        type="button"
+                        onClick={handleRemovePhoto}
+                        className="shrink-0 text-xs text-red-300 transition hover:text-red-200"
+                      >
+                        Remove
+                      </button>
+                    </div>
+                  )}
+                </div>
               </div>
 
               <div className="mb-7 grid gap-4 sm:grid-cols-2">
@@ -471,7 +463,7 @@ export default function ReportPage() {
                       </div>
 
                       <span className="rounded-full bg-white/10 px-3 py-1 text-xs font-semibold text-white/70">
-                        {analysis.confidence}% confidence
+                        {Math.round(analysis.confidence * 100)}% confidence
                       </span>
                     </div>
 
@@ -515,13 +507,18 @@ export default function ReportPage() {
                     </div>
                   </div>
                 )}
+                {submitError && (
+                  <div className="mb-4 rounded-xl border border-red-400/20 bg-red-400/5 px-4 py-3 text-xs text-red-300">
+                    {submitError}
+                  </div>
+                )}
                 <button
                   onClick={handleSubmit}
-                disabled={!description.trim()}
+                  disabled={!description.trim() || submitting}
                 className="flex w-full items-center justify-center gap-2 rounded-2xl bg-emerald-400 px-5 py-4 text-sm font-bold text-black transition hover:bg-emerald-300 disabled:cursor-not-allowed disabled:opacity-30"
               >
                 <Send size={17} />
-                Submit environmental report
+                {submitting ? "Analyzing and submitting…" : "Submit environmental report"}
               </button>
             </div>
 
