@@ -104,7 +104,7 @@ export async function GET() {
     }
 
     const contexts = (contextData as DevelopmentContext[])
-      .filter((context) => context.contextStatus === "verified" && context.freshness !== "stale");
+      .filter((context) => context.contextStatus === "verified" && context.freshness !== "unavailable");
 
     const trustedReports = (await getReports()).filter(isPriorityEligibleReport)
       .filter((report) => !["resolved", "rejected"].includes(report.status ?? "reported"));
@@ -157,7 +157,7 @@ export async function GET() {
             ? item
             : best,
       ) : undefined;
-      const context = geographicContext ?? coordinateContext;
+      const context = geographicContext ?? (coordinateContext && distanceSquared(coordinateContext, first) <= 4 ? coordinateContext : undefined);
 
       const severityRank = {
         low: 1,
@@ -265,7 +265,7 @@ export async function GET() {
         },
       })),
       contextDisclosure:
-        "Demographic, infrastructure, and public-investment datasets are unavailable. Illustrative fixture values are excluded from these scores.",
+        "Verified cached public-data context is available for Maharashtra: Census 2011 demographic baseline, UDISE+ 2024-25 school-infrastructure indicators, and MoSPI March 2026 project monitoring. These state-level contextual signals are freshness-discounted; geographies without a verified context omit those components.",
     }, { headers: { "Cache-Control": "public, max-age=15, s-maxage=30, stale-while-revalidate=30" } });
   } catch (error) {
     console.error(
