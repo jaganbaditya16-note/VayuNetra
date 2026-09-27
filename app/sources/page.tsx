@@ -41,13 +41,13 @@ const sources = [
     title: "Census India / Open Government Data",
     icon: Database,
     description:
-            "Unavailable in this build: there is no Census or data.gov.in adapter. No population statistic is currently included in scoring.",
+      "Verified cached snapshot: Maharashtra population baseline from Census 2011. It is historical rather than a current estimate and is freshness-discounted in priority scoring.",
   },
   {
     title: "UDISE+ / Government Open Data",
     icon: Database,
     description:
-            "Future adapter only: UDISE+ data is not connected and no education-infrastructure value is currently used.",
+      "Verified cached snapshot: Maharashtra school-infrastructure indicators from UDISE+ 2024-25, including functional electricity and toilet coverage. The state-level context is freshness-discounted.",
   },
   {
     title: "PM GatiShakti / Infrastructure Planning",
@@ -59,7 +59,7 @@ const sources = [
     title: "MoSPI Infrastructure Statistics",
     icon: Code2,
     description:
-            "Future adapter only: MoSPI infrastructure statistics are not connected to this prototype or its priority scores.",
+      "Verified cached snapshot: Maharashtra March 2026 PAIMANA project count, original cost and cumulative expenditure. It contributes a discounted state-level planning signal.",
   },
 ];
 
@@ -87,8 +87,10 @@ export default function SourcesPage() {
 
           <p className="mt-4 text-sm leading-6 text-slate-400 sm:text-base">
             VayuNetra combines community observations with a live satellite
-            estimate where configured. Demographic, ground-monitoring and
-            public-investment context is currently unavailable or illustrative.
+            estimate where configured and a provenance-tracked Maharashtra
+            public-data snapshot. Historical/annual government datasets are
+            explicitly marked and freshness-discounted rather than presented
+            as real-time local measurements.
           </p>
         </header>
 
