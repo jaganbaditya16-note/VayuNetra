@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { spawn } from "child_process";
 import path from "path";
+import { checkRateLimit } from "@/lib/security/rate-limit";
 
 type SatelliteReading = {
   value: number | null;
@@ -24,7 +25,43 @@ const MAX_OUTPUT_BYTES = 256 * 1024;
 const MAX_ERROR_BYTES = 32 * 1024;
 const MAX_DATE_RANGE_DAYS = 10;
 
+/**
+ * Upper bound on Earth Engine child processes running at once, across all
+ * callers. This route is public and unauthenticated, and each cache miss spawns
+ * a Python process; without a global cap a caller could rotate coordinates by
+ * 0.0001 degrees to defeat the per-coordinate cache and exhaust the CPU and
+ * memory available to the instance.
+ */
+const MAX_CONCURRENT_SATELLITE_PROCESSES = 4;
+const SATELLITE_QUEUE_LIMIT = 64;
+
 const environmentalCache = new Map<string, CacheEntry>();
+
+let activeSatelliteProcesses = 0;
+let queuedSatelliteRequests = 0;
+
+/**
+ * Reserves capacity for one Earth Engine child process.
+ *
+ * Returns `"active"` when a process slot was taken, `"queued"` when the caller
+ * should wait for one, and `null` when the request must be rejected.
+ */
+function acquireSatelliteSlot(): "active" | "queued" | null {
+  if (activeSatelliteProcesses < MAX_CONCURRENT_SATELLITE_PROCESSES) {
+    activeSatelliteProcesses += 1;
+    return "active";
+  }
+  if (queuedSatelliteRequests < SATELLITE_QUEUE_LIMIT) {
+    queuedSatelliteRequests += 1;
+    return "queued";
+  }
+  return null;
+}
+
+function releaseSatelliteSlot(slot: "active" | "queued") {
+  if (slot === "active") activeSatelliteProcesses -= 1;
+  else queuedSatelliteRequests -= 1;
+}
 
 function satelliteProvenance(measuredAt: string, delivery: "live" | "cached", stale = false) {
   const endDate = measuredAt.split(" to ").at(-1) ?? "";
@@ -97,6 +134,11 @@ function runEarthEngine(
   startDate: string,
   endDate: string
 ): Promise<SatelliteReading> {
+  const slot = acquireSatelliteSlot();
+  if (slot === null) {
+    return Promise.reject(new Error("Satellite capacity exhausted."));
+  }
+
   return new Promise((resolve, reject) => {
     const scriptPath = path.join(
       process.cwd(),
@@ -132,6 +174,7 @@ function runEarthEngine(
 
       settled = true;
       clearTimeout(timeout);
+      releaseSatelliteSlot(slot);
       reject(error);
     };
 
@@ -142,6 +185,7 @@ function runEarthEngine(
 
       settled = true;
       clearTimeout(timeout);
+      releaseSatelliteSlot(slot);
       resolve(result);
     };
 
@@ -208,6 +252,9 @@ function runEarthEngine(
 }
 
 export async function GET(request: Request) {
+  const rateLimitResponse = checkRateLimit(request, "environmental", 30, 60_000);
+  if (rateLimitResponse) return rateLimitResponse;
+
   try {
     const { searchParams } = new URL(request.url);
 

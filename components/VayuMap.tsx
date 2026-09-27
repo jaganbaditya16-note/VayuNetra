@@ -122,7 +122,7 @@ export default function VayuMap({
         <p className="mb-2 font-semibold uppercase tracking-wider text-slate-400">
           Severity
         </p>
-        <div className="grid grid-cols-3 gap-3 text-slate-500">
+        <div className="grid grid-cols-2 gap-x-4 gap-y-2 text-slate-500">
           <span className="flex items-center gap-1.5">
             <i className="h-2 w-2 rounded-full bg-red-500" /> Critical
           </span>
@@ -131,6 +131,9 @@ export default function VayuMap({
           </span>
           <span className="flex items-center gap-1.5">
             <i className="h-2 w-2 rounded-full bg-yellow-400" /> Moderate
+          </span>
+          <span className="flex items-center gap-1.5">
+            <i className="h-2 w-2 rounded-full bg-cyan-400" /> Low
           </span>
         </div>
       </div>

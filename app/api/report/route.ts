@@ -12,7 +12,7 @@ import {
   getReportsPersistenceConfiguration,
 } from "@/lib/reports/persistence-config";
 import { validateGeographicHierarchy } from "@/lib/geography/types";
-import { checkRateLimit } from "@/lib/security/rate-limit";
+import { checkRateLimit, clientIp } from "@/lib/security/rate-limit";
 import { parseBoundedJson, readBoundedBody, RequestBodyTooLargeError } from "@/lib/security/request-body";
 import { internalServiceUrl } from "@/lib/security/internal-origin";
 
@@ -70,7 +70,14 @@ export async function POST(request: Request) {
       channel = String(form.get("channel") ?? "web").trim().toLowerCase();
       const locationField = form.get("location");
       if (typeof locationField === "string" && locationField.trim()) {
-        location = JSON.parse(locationField);
+        // A browser that never resolved geolocation sends the literal string
+        // "null" (JSON.stringify(null)). Treat any non-object payload as "no
+        // location" so declining the permission prompt does not reject an
+        // otherwise valid report.
+        const parsedLocation = JSON.parse(locationField);
+        if (parsedLocation && typeof parsedLocation === "object" && !Array.isArray(parsedLocation)) {
+          location = parsedLocation as { latitude: number | null; longitude: number | null };
+        }
       }
       const geographyField = form.get("geography");
       if (typeof geographyField === "string" && geographyField.trim()) geography = JSON.parse(geographyField);
@@ -168,9 +175,10 @@ export async function POST(request: Request) {
     }
 
     const geminiUrl = internalServiceUrl("/api/gemini");
-    const forwardedFor = request.headers.get("x-forwarded-for") ??
-      request.headers.get("x-real-ip") ??
-      "internal-report";
+    // Forward the resolved client address rather than the raw header, so the
+    // internal analysis call shares this requester's bucket and a spoofed
+    // X-Forwarded-For cannot hand the caller a fresh allowance.
+    const forwardedFor = clientIp(request);
     let geminiResponse: Response | null = null;
     try {
       if (image) {

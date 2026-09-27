@@ -119,7 +119,28 @@ npm install
 npm run dev
 ```
 
-Required environment variables include the Gemini API key and any credentials needed by enabled environmental data integrations. Never commit secrets.
+The app runs with no configuration at all. Gemini, Supabase and Earth Engine are each
+optional in development: without Gemini, reports are classified by the deterministic
+fallback; without Supabase, reports are stored in `data/reports.json`.
+
+Report integrity signing also has a development-only fallback. Outside production, when
+neither `VAYUNETRA_INTEGRITY_SECRET` nor `GEMINI_API_KEY` is set, the server signs reports
+with a fixed placeholder. This matters more than it looks: reports that are not signed are
+excluded from hotspots and priority scoring by design, so without a fallback a fresh local
+setup appears to accept reports that then never appear on `/map`, `/insights` or
+`/priorities`. The placeholder exists only so local development exercises the real
+pipeline. `/api/health` reports this as `checks.integrity = "development-placeholder"`.
+Production never uses it — production requires a real `VAYUNETRA_INTEGRITY_SECRET` of at
+least 32 bytes and returns HTTP 503 without one.
+
+To enable the live providers, copy `.env.example` to `.env.local` and fill in what you need:
+
+```bash
+cp .env.example .env.local
+openssl rand -hex 32   # a good VAYUNETRA_INTEGRITY_SECRET value
+```
+
+Never commit secrets.
 
 ## Production direction
 

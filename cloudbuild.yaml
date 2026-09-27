@@ -1,0 +1,49 @@
+steps:
+  - name: gcr.io/cloud-builders/docker
+    args:
+      - build
+      - -t
+      - ${_REGION}-docker.pkg.dev/$PROJECT_ID/${_REPOSITORY}/vayunetra:$COMMIT_SHA
+      - -t
+      - ${_REGION}-docker.pkg.dev/$PROJECT_ID/${_REPOSITORY}/vayunetra:latest
+      - .
+
+  - name: gcr.io/cloud-builders/docker
+    args:
+      - push
+      - ${_REGION}-docker.pkg.dev/$PROJECT_ID/${_REPOSITORY}/vayunetra:$COMMIT_SHA
+      - ${_REGION}-docker.pkg.dev/$PROJECT_ID/${_REPOSITORY}/vayunetra:latest
+
+  - name: gcr.io/google.com/cloudsdktool/cloud-sdk:slim
+    entrypoint: gcloud
+    args:
+      - run
+      - deploy
+      - ${_SERVICE}
+      - --image=${_REGION}-docker.pkg.dev/$PROJECT_ID/${_REPOSITORY}/vayunetra:$COMMIT_SHA
+      - --region=${_REGION}
+      - --platform=managed
+      - --allow-unauthenticated
+      # Scale to zero to stay inside the Cloud Run free tier.
+      - --min-instances=0
+      - --max-instances=${_MAX_INSTANCES}
+      - --cpu=${_CPU}
+      - --memory=${_MEMORY}
+      - --timeout=60s
+      - --port=8080
+      - --quiet
+
+substitutions:
+  _REGION: asia-south1
+  _SERVICE: vayunetra
+  _REPOSITORY: vayunetra
+  _MAX_INSTANCES: "2"
+  _CPU: "1"
+  _MEMORY: 2Gi
+
+images:
+  - ${_REGION}-docker.pkg.dev/$PROJECT_ID/${_REPOSITORY}/vayunetra:$COMMIT_SHA
+  - ${_REGION}-docker.pkg.dev/$PROJECT_ID/${_REPOSITORY}/vayunetra:latest
+
+options:
+  logging: CLOUD_LOGGING_ONLY

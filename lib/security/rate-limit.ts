@@ -1,4 +1,7 @@
 import { NextResponse } from "next/server";
+import { clientIp } from "./client-ip.ts";
+
+export { clientIp } from "./client-ip.ts";
 
 type Bucket = {
   count: number;
@@ -8,15 +11,6 @@ type Bucket = {
 const buckets = new Map<string, Bucket>();
 const MAX_BUCKETS = 10_000;
 let lastCleanup = 0;
-
-function getClientKey(request: Request, scope: string) {
-  const forwarded = request.headers.get("x-forwarded-for");
-  const ip = forwarded?.split(",")[0]?.trim()
-    || request.headers.get("x-real-ip")
-    || "unknown";
-
-  return `${scope}:${ip}`;
-}
 
 export function checkRateLimit(
   request: Request,
@@ -29,7 +23,7 @@ export function checkRateLimit(
     for (const [key, bucket] of buckets) if (bucket.resetAt <= now) buckets.delete(key);
     lastCleanup = now;
   }
-  const key = getClientKey(request, scope);
+  const key = `${scope}:${clientIp(request)}`;
   const existing = buckets.get(key);
 
   if (!existing || now >= existing.resetAt) {

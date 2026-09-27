@@ -1,4 +1,4 @@
-﻿import { NextResponse } from "next/server";
+import { NextResponse } from "next/server";
 import { spawn } from "child_process";
 import path from "path";
 import { fuseEvidence, rankHotspots } from "@/lib/environmental/fusion";
@@ -9,6 +9,7 @@ import type {
 } from "@/lib/environmental/types";
 import { coarseCoordinate } from "@/lib/reports/public";
 import { isPriorityEligibleReport } from "@/lib/reports/analysis";
+import { checkRateLimit } from "@/lib/security/rate-limit";
 import {
   getIntegrityConfigurationError,
   getReportsPersistenceConfiguration,
@@ -393,7 +394,20 @@ async function mapWithConcurrency<T, R>(
   return results;
 }
 
-export async function GET() {
+export async function GET(request: Request) {
+  // This route fans out to Earth Engine child processes, so it needs the same
+  // per-client limit as the other public analysis routes.
+  const rateLimitResponse = checkRateLimit(
+    request,
+    "hotspots",
+    20,
+    60_000,
+  );
+
+  if (rateLimitResponse) {
+    return rateLimitResponse;
+  }
+
   try {
     const integrityError =
       getIntegrityConfigurationError();

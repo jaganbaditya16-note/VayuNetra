@@ -1,7 +1,9 @@
 import { NextResponse } from "next/server";
 import { checkRateLimit } from "@/lib/security/rate-limit";
 import { internalServiceUrl } from "@/lib/security/internal-origin";
+import { parseBoundedJson, RequestBodyTooLargeError } from "@/lib/security/request-body";
 
+const MAX_INTAKE_BODY_BYTES = 64 * 1024;
 const VALID_CHANNELS = new Set(["whatsapp", "sms", "webchat", "messaging"]);
 
 export async function POST(request: Request) {
@@ -9,15 +11,18 @@ export async function POST(request: Request) {
   if (rateLimitResponse) return rateLimitResponse;
 
   try {
-    const body = await request.json();
-    const text = typeof body?.text === "string" ? body.text.trim() : "";
-    const language = typeof body?.language === "string" && body.language.trim()
+    const parsedBody = await parseBoundedJson(request, MAX_INTAKE_BODY_BYTES);
+    const body = parsedBody && typeof parsedBody === "object" && !Array.isArray(parsedBody)
+      ? parsedBody as Record<string, unknown>
+      : {};
+    const text = typeof body.text === "string" ? body.text.trim() : "";
+    const language = typeof body.language === "string" && body.language.trim()
       ? body.language.trim()
       : "English";
-    const channel = typeof body?.channel === "string" && body.channel.trim()
+    const channel = typeof body.channel === "string" && body.channel.trim()
       ? body.channel.trim().toLowerCase()
       : "messaging";
-    const location = body?.location && typeof body.location === "object"
+    const location = body.location && typeof body.location === "object"
       ? body.location
       : { latitude: null, longitude: null };
 
@@ -58,6 +63,12 @@ export async function POST(request: Request) {
       { status: 201 },
     );
   } catch (error) {
+    if (error instanceof RequestBodyTooLargeError) {
+      return NextResponse.json({ error: "Request body is too large." }, { status: 413 });
+    }
+    if (error instanceof SyntaxError || error instanceof TypeError) {
+      return NextResponse.json({ error: "Request body is malformed." }, { status: 400 });
+    }
     console.error("Message intake failed:", error);
     return NextResponse.json(
       { error: "Message intake is temporarily unavailable." },

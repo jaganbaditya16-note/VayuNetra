@@ -106,7 +106,7 @@ export function buildDevelopmentPriority(
           : "monitor";
 
   const rationale = [
-    input.reportCount + " located citizen report" + (input.reportCount === 1 ? "" : "s") + " currently support this demand cluster.",
+    input.reportCount + " located citizen report" + (input.reportCount === 1 ? "" : "s") + (input.reportCount === 1 ? " currently supports" : " currently support") + " this demand cluster.",
     "Evidence strength is " + Math.round(evidenceStrength * 100) + "% from the current evidence pipeline.",
     ...(context
       ? [

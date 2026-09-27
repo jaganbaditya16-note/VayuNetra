@@ -561,24 +561,57 @@ function canonicalJson(
   );
 }
 
+/**
+ * Non-production placeholder used only when neither
+ * `VAYUNETRA_INTEGRITY_SECRET` nor `GEMINI_API_KEY` is configured.
+ *
+ * Without it a fresh `npm run dev` signs nothing, so every local report is
+ * stored unsigned and is then excluded from hotspots and priorities. That
+ * makes the application look broken locally even though it is behaving exactly
+ * as designed. Production never reaches this branch: the placeholder is only
+ * consulted outside `NODE_ENV === "production"`, and
+ * `getIntegrityConfigurationError` fails production outright when the
+ * dedicated secret is absent.
+ */
+const DEVELOPMENT_INTEGRITY_SECRET =
+  "vayunetra-development-only-integrity-secret";
+
+/**
+ * Reports whether the active integrity secret is the shared non-production
+ * placeholder, so `/api/health` can surface that local signatures carry no
+ * real weight.
+ */
+export function usesDevelopmentIntegrityFallback(
+  env: NodeJS.ProcessEnv = process.env,
+): boolean {
+  if (env.NODE_ENV === "production") {
+    return false;
+  }
+
+  return !(
+    env.VAYUNETRA_INTEGRITY_SECRET?.trim() ||
+    env.GEMINI_API_KEY?.trim()
+  );
+}
+
 function getIntegritySecret(): string {
+  const configured =
+    process.env
+      .VAYUNETRA_INTEGRITY_SECRET
+      ?.trim() ?? "";
+
   if (
     process.env.NODE_ENV ===
     "production"
   ) {
-    return (
-      process.env
-        .VAYUNETRA_INTEGRITY_SECRET
-        ?.trim() ?? ""
-    );
+    // Production never falls back to any other value.
+    return configured;
   }
 
   return (
-    process.env
-      .VAYUNETRA_INTEGRITY_SECRET
-      ?.trim() ||
+    configured ||
     process.env.GEMINI_API_KEY?.trim() ||
-    ""
+    DEVELOPMENT_INTEGRITY_SECRET
   );
 }
 
