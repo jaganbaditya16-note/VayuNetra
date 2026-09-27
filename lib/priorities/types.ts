@@ -21,6 +21,7 @@ export type DevelopmentContext = {
   geographyId?: string | null;
   geographicLevel?: string | null;
   freshness?: "fresh" | "stale" | "unavailable";
+  dataNotes?: string[];
 };
 
 export type PriorityInput = {
